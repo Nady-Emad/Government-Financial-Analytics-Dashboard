@@ -1020,11 +1020,86 @@
             </div>
 
             <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-warning">
+                <div class="kpi-icon"><i class="bi bi-arrow-left-right"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">الفرق (مدين - دائن)</div>
+                  <div class="kpi-value" id="totalDifference">0 ج.م</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
               <div class="kpi-card kpi-secondary">
                 <div class="kpi-icon"><i class="bi bi-percent"></i></div>
                 <div class="kpi-content">
                   <div class="kpi-label">نسبة التنفيذ</div>
                   <div class="kpi-value" id="executionRate">0%</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-info" id="decisionIndicatorCard">
+                <div class="kpi-icon" id="decisionIndicatorIcon"><i class="bi bi-info-circle"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">الحالة</div>
+                  <div class="kpi-value" id="decisionIndicator">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-info" id="dataQualityCard">
+                <div class="kpi-icon"><i class="bi bi-shield-check"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">جودة البيانات</div>
+                  <div class="kpi-value" id="dataQualityScore">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-info" id="budgetControlCard">
+                <div class="kpi-icon"><i class="bi bi-currency-exchange"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">التحكم بالموازنة</div>
+                  <div class="kpi-value" id="budgetControlStatus">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Enterprise Report Section -->
+          <div class="row g-3 mb-3" id="enterpriseReportSection">
+            <div class="col-lg-4">
+              <div class="panel">
+                <div class="panel-header d-flex justify-content-between align-items-center">
+                  <h6><i class="bi bi-shield-check"></i> حالة التقرير</h6>
+                  <span id="reportStatusBadge"></span>
+                </div>
+                <div class="panel-body" id="auditReportContent">
+                  <div class="text-muted text-center">جارٍ تحميل تقرير التدقيق...</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="panel">
+                <div class="panel-header">
+                  <h6><i class="bi bi-graph-up-arrow"></i> درجة الجودة</h6>
+                </div>
+                <div class="panel-body" id="qualitySummaryContent">
+                  <div class="text-muted text-center">جارٍ تحميل الملخص...</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="panel">
+                <div class="panel-header">
+                  <h6><i class="bi bi-lightbulb"></i> التوصيات والقرارات</h6>
+                </div>
+                <div class="panel-body" id="recommendationsContent" style="max-height: 300px; overflow-y: auto;">
+                  <div class="text-muted text-center">جارٍ تحميل التوصيات...</div>
                 </div>
               </div>
             </div>
@@ -1722,6 +1797,1246 @@
           incomplete: this.validateCompleteness(rows, headers),
           duplicates: this.validateDuplicates(rows)
         };
+      }
+    }
+
+    /**
+     * FinancialValidator class - Enhanced financial validation with anomaly detection
+     */
+    class FinancialValidator {
+      static analyzeFinancialData(rows, columns) {
+        const { debitCol, creditCol, amountCol, dateCol, categoryCol } = columns;
+        
+        const result = {
+          balanceCheck: this.validateBalance(rows, debitCol, creditCol),
+          duplicateCheck: this.validateDuplicates(rows),
+          missingData: this.validateMissingData(rows, { debitCol, creditCol, amountCol, dateCol, categoryCol }),
+          outlierCheck: this.detectOutliers(rows, amountCol || debitCol || creditCol),
+          summary: {
+            totalRows: rows.length,
+            balancedRows: 0,
+            unbalancedRows: 0,
+            totalDebit: 0,
+            totalCredit: 0,
+            difference: 0,
+            hasBudget: false,
+            executionRate: null,
+            executionRateNote: ''
+          }
+        };
+
+        rows.forEach(row => {
+          const debit = Formatter.toNumber(row[debitCol]) || 0;
+          const credit = Formatter.toNumber(row[creditCol]) || 0;
+          const amount = Formatter.toNumber(row[amountCol]) || 0;
+          
+          result.summary.totalDebit += debit;
+          result.summary.totalCredit += credit;
+          
+          if (Math.abs(debit - credit) <= 0.01) {
+            result.summary.balancedRows++;
+          } else {
+            result.summary.unbalancedRows++;
+          }
+        });
+
+        result.summary.difference = result.summary.totalDebit - result.summary.totalCredit;
+
+        const hasBudgetColumn = this.hasBudgetColumn(rows);
+        if (hasBudgetColumn) {
+          const budgetTotal = this.calculateBudgetTotal(rows);
+          const actualTotal = this.calculateActualTotal(rows);
+          result.summary.hasBudget = true;
+          if (budgetTotal > 0) {
+            result.summary.executionRate = (actualTotal / budgetTotal) * 100;
+            result.summary.executionRateNote = `الفعلي: ${Formatter.formatCurrency(actualTotal)} / الموازنة: ${Formatter.formatCurrency(budgetTotal)}`;
+          }
+        } else {
+          result.summary.executionRateNote = 'لا تتوفر بيانات الموازنة';
+        }
+
+        return result;
+      }
+
+      static validateBalance(rows, debitCol, creditCol) {
+        const issues = [];
+        if (!debitCol || !creditCol) return issues;
+
+        rows.forEach((row, idx) => {
+          const debit = Formatter.toNumber(row[debitCol]) || 0;
+          const credit = Formatter.toNumber(row[creditCol]) || 0;
+          
+          if (Math.abs(debit - credit) > 0.01) {
+            issues.push({
+              rowIndex: idx + 1,
+              debit,
+              credit,
+              difference: debit - credit,
+              severity: Math.abs(debit - credit) > 1000 ? 'high' : Math.abs(debit - credit) > 100 ? 'medium' : 'low'
+            });
+          }
+        });
+        return issues;
+      }
+
+      static validateDuplicates(rows) {
+        const seen = new Map();
+        const duplicates = [];
+        
+        rows.forEach((row, idx) => {
+          const key = JSON.stringify(row);
+          if (seen.has(key)) {
+            duplicates.push({
+              rowIndex: idx + 1,
+              originalRow: seen.get(key)
+            });
+          } else {
+            seen.set(key, idx + 1);
+          }
+        });
+        
+        return duplicates;
+      }
+
+      static validateMissingData(rows, columns) {
+        const missing = {
+          debit: 0,
+          credit: 0,
+          amount: 0,
+          date: 0,
+          category: 0,
+          total: 0
+        };
+
+        rows.forEach(row => {
+          if (columns.debitCol && !Formatter.toNumber(row[columns.debitCol])) missing.debit++;
+          if (columns.creditCol && !Formatter.toNumber(row[columns.creditCol])) missing.credit++;
+          if (columns.amountCol && !Formatter.toNumber(row[columns.amountCol])) missing.amount++;
+          if (columns.dateCol && !Formatter.normalizeValue(row[columns.dateCol])) missing.date++;
+          if (columns.categoryCol && !Formatter.normalizeValue(row[columns.categoryCol])) missing.category++;
+        });
+
+        missing.total = missing.debit + missing.credit + missing.amount;
+        return missing;
+      }
+
+      static detectOutliers(rows, amountCol) {
+        if (!amountCol || rows.length < 10) return { detected: false, outliers: [] };
+
+        const values = rows
+          .map(row => Formatter.toNumber(row[amountCol]) || 0)
+          .filter(v => v > 0)
+          .sort((a, b) => a - b);
+
+        if (values.length < 5) return { detected: false, outliers: [] };
+
+        const q1 = values[Math.floor(values.length * 0.25)];
+        const q3 = values[Math.floor(values.length * 0.75)];
+        const iqr = q3 - q1;
+        const upperThreshold = q3 + (1.5 * iqr);
+        
+        const outliers = [];
+        rows.forEach((row, idx) => {
+          const amount = Formatter.toNumber(row[amountCol]) || 0;
+          if (amount > upperThreshold && amount > 0) {
+            outliers.push({
+              rowIndex: idx + 1,
+              amount,
+              threshold: upperThreshold,
+              severity: amount > (upperThreshold * 3) ? 'high' : 'medium'
+            });
+          }
+        });
+
+        return {
+          detected: outliers.length > 0,
+          outliers: outliers.slice(0, 20),
+          threshold: upperThreshold,
+          count: outliers.length
+        };
+      }
+
+      static hasBudgetColumn(rows) {
+        if (rows.length === 0) return false;
+        const headers = Object.keys(rows[0]);
+        const budgetKeywords = ['موازنة', 'budget', 'approved', 'معتمد', 'اعتماد', 'مخطط'];
+        return headers.some(h => budgetKeywords.some(k => h.toLowerCase().includes(k)));
+      }
+
+      static calculateBudgetTotal(rows) {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const budgetCol = headers.find(h => 
+          ['موازنة', 'budget', 'approved', 'معتمد', 'اعتماد', 'مخطط'].some(k => h.toLowerCase().includes(k))
+        );
+        if (!budgetCol) return 0;
+        
+        return rows.reduce((sum, row) => {
+          return sum + (Formatter.toNumber(row[budgetCol]) || 0);
+        }, 0);
+      }
+
+      static calculateActualTotal(rows) {
+        const { debitCol, creditCol, amountCol } = app.resolveFinancialColumns();
+        const amountColUsed = amountCol || debitCol || creditCol;
+        if (!amountColUsed) return 0;
+        
+        return rows.reduce((sum, row) => {
+          return sum + (Formatter.toNumber(row[amountColUsed]) || 0);
+        }, 0);
+      }
+
+      static getValidationWarnings(validationResult) {
+        const warnings = [];
+        
+        if (validationResult.balanceCheck.length > 0) {
+          const highSeverity = validationResult.balanceCheck.filter(i => i.severity === 'high').length;
+          warnings.push({
+            type: highSeverity > 0 ? 'danger' : 'warning',
+            icon: 'exclamation-triangle',
+            title: 'قيود غير متوازنة',
+            message: `تم اكتشاف ${validationResult.balanceCheck.length} قيد غير متوازن (المدين ≠ الدائن)`,
+            details: `إجمالي الفرق: ${Formatter.formatCurrency(Math.abs(validationResult.balanceCheck.reduce((sum, item) => sum + item.difference, 0)))}`,
+            severity: highSeverity > 0 ? 'critical' : 'high'
+          });
+        }
+
+        if (validationResult.duplicateCheck.length > 0) {
+          warnings.push({
+            type: 'warning',
+            icon: 'files',
+            title: 'سجلات مكررة',
+            message: `تم اكتشاف ${validationResult.duplicateCheck.length} سجل مكرر`,
+            details: 'قد تؤثر السجلات المكررة على دقة التحليل',
+            severity: 'medium'
+          });
+        }
+
+        if (validationResult.missingData.total > 0) {
+          const missingParts = [];
+          if (validationResult.missingData.debit > 0) missingParts.push(`مدين: ${validationResult.missingData.debit}`);
+          if (validationResult.missingData.credit > 0) missingParts.push(`دائن: ${validationResult.missingData.credit}`);
+          if (validationResult.missingData.amount > 0) missingParts.push(`مبلغ: ${validationResult.missingData.amount}`);
+          
+          warnings.push({
+            type: 'warning',
+            icon: 'dash-circle',
+            title: 'بيانات ناقصة',
+            message: `تم اكتشاف ${validationResult.missingData.total} حقل ناقص`,
+            details: missingParts.join(' | '),
+            severity: 'medium'
+          });
+        }
+
+        if (validationResult.outlierCheck.detected) {
+          const highSeverity = validationResult.outlierCheck.outliers.filter(o => o.severity === 'high').length;
+          warnings.push({
+            type: highSeverity > 0 ? 'danger' : 'info',
+            icon: 'graph-up-arrow',
+            title: 'قيم استثنائية',
+            message: `تم اكتشاف ${validationResult.outlierCheck.count} قيمة استثنائية`,
+            details: `القيم أكبر من ${Formatter.formatCurrency(validationResult.outlierCheck.threshold)}`,
+            severity: highSeverity > 0 ? 'high' : 'low'
+          });
+        }
+
+        if (warnings.length === 0) {
+          warnings.push({
+            type: 'success',
+            icon: 'check-circle',
+            title: 'البيانات سليمة',
+            message: 'لم يتم اكتشاف مشاكل في البيانات',
+            details: '',
+            severity: 'none'
+          });
+        }
+
+        return warnings;
+      }
+    }
+
+    /**
+     * InsightEngine - Smart financial insights generation
+     */
+    class InsightEngine {
+      static generateInsights(rows, columns, summary) {
+        const insights = {
+          topCategories: [],
+          trends: [],
+          anomalies: [],
+          recommendations: []
+        };
+
+        const { debitCol, creditCol, amountCol, categoryCol, dateCol } = columns;
+        const categoryColumn = categoryCol || columns.category;
+        const valueColumn = amountCol || debitCol || creditCol;
+
+        if (categoryColumn && valueColumn) {
+          const categoryTotals = {};
+          rows.forEach(row => {
+            const category = Formatter.normalizeValue(row[categoryColumn]) || 'غير محدد';
+            const value = Formatter.toNumber(row[valueColumn]) || 0;
+            categoryTotals[category] = (categoryTotals[category] || 0) + value;
+          });
+
+          const sortedCategories = Object.entries(categoryTotals)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+          insights.topCategories = sortedCategories.map(([name, value], index) => ({
+            rank: index + 1,
+            name,
+            value,
+            percentage: (value / sortedCategories[0][1] * 100).toFixed(1)
+          }));
+        }
+
+        if (dateCol && valueColumn) {
+          const monthlyTotals = {};
+          rows.forEach(row => {
+            const dateValue = Formatter.normalizeValue(row[dateCol]);
+            if (dateValue && dateValue.length >= 7) {
+              const month = dateValue.slice(0, 7);
+              const value = Formatter.toNumber(row[valueColumn]) || 0;
+              monthlyTotals[month] = (monthlyTotals[month] || 0) + value;
+            }
+          });
+
+          const sortedMonths = Object.entries(monthlyTotals).sort();
+          if (sortedMonths.length >= 2) {
+            const lastMonth = sortedMonths[sortedMonths.length - 1][1];
+            const prevMonth = sortedMonths[sortedMonths.length - 2][1];
+            const change = ((lastMonth - prevMonth) / prevMonth * 100).toFixed(1);
+            
+            insights.trends.push({
+              period: sortedMonths[sortedMonths.length - 1][0],
+              current: lastMonth,
+              previous: prevMonth,
+              change: parseFloat(change),
+              direction: change > 0 ? 'up' : change < 0 ? 'down' : 'stable'
+            });
+          }
+        }
+
+        if (summary.executionRate !== null) {
+          if (summary.executionRate > 100) {
+            insights.anomalies.push({
+              type: 'critical',
+              title: 'تجاوز الموازنة',
+              message: `نسبة التنفيذ ${summary.executionRate.toFixed(1)}% تتجاوز 100%`,
+              severity: 'critical'
+            });
+          } else if (summary.executionRate > 90) {
+            insights.recommendations.push({
+              type: 'warning',
+              title: 'اقتراب من الاستنفاد',
+              message: `نسبة التنفيذ ${summary.executionRate.toFixed(1)}% - قريب من حد الموازنة`,
+              action: 'مراجعة المصروفات المتبقية'
+            });
+          }
+        }
+
+        if (summary.unbalancedRows > 0) {
+          insights.recommendations.push({
+            type: 'danger',
+            title: 'قيود غير متوازنة',
+            message: `يوجد ${summary.unbalancedRows} قيد يتطلب تصحيح`,
+            action: 'مراجعة وتسوية القيود'
+          });
+        }
+
+        if (summary.difference > 0) {
+          insights.recommendations.push({
+            type: 'warning',
+            title: 'فرق في أرصدة المدين والدائن',
+            message: `الفرق ${Formatter.formatCurrency(Math.abs(summary.difference)}`,
+            action: 'التحقق من صحة القيود'
+          });
+        }
+
+        return insights;
+      }
+
+      static getDecisionIndicator(summary) {
+        if (summary.unbalancedRows > summary.totalRows * 0.1) {
+          return { status: 'critical', icon: 'x-circle', color: '#dc3545', label: 'يتطلب تدخل فوري' };
+        }
+        
+        if (summary.executionRate !== null && summary.executionRate > 100) {
+          return { status: 'critical', icon: 'exclamation-triangle', color: '#dc3545', label: 'تجاوز الميزانية' };
+        }
+        
+        if (summary.executionRate !== null && summary.executionRate > 90) {
+          return { status: 'warning', icon: 'exclamation-circle', color: '#ffc107', label: 'تحذير - اقتراب من الحد' };
+        }
+        
+        if (summary.executionRate !== null && summary.executionRate >= 70 && summary.executionRate <= 90) {
+          return { status: 'good', icon: 'check-circle', color: '#198754', label: 'ضمن النطاق المقبول' };
+        }
+        
+        return { status: 'neutral', icon: 'info-circle', color: '#0dcaf0', label: 'لا توجد تحذيرات' };
+      }
+    }
+
+    /**
+     * DrillDownManager - Click-to-drill functionality
+     */
+    class DrillDownManager {
+      static async showDrillDownModal(kpiType, value, appInstance) {
+        if (!appInstance || !appInstance.state) return;
+        
+        const summary = appInstance.calculateFinancialSummary();
+        const { debitCol, creditCol, amountCol, categoryCol, dateCol } = appInstance.resolveFinancialColumns();
+        
+        let modalTitle = '';
+        let filteredData = [];
+        let modalContent = '';
+        
+        switch(kpiType) {
+          case 'unbalanced':
+            modalTitle = 'القيود غير المتوازنة';
+            const validation = ValidationService.performAll(
+              appInstance.state.filteredRows,
+              appInstance.state.headers,
+              { debit: debitCol, credit: creditCol }
+            );
+            filteredData = validation.unbalanced.slice(0, 50).map(item => ({
+              'رقم الصف': item.index,
+              'المدين': item.debit,
+              'الدائن': item.credit,
+              'الفرق': item.diff.toFixed(2)
+            }));
+            modalContent = `
+              <div class="alert alert-warning">
+                <strong>إجمالي ${validation.unbalanced.length} قيد غير متوازن</strong>
+                <p class="mb-0 small">القيود التي يكون فيها المدين لا يساوي الدائن</p>
+              </div>
+              <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-striped">
+                  <thead><tr><th>رقم الصف</th><th>المدين</th><th>الدائن</th><th>الفرق</th></tr></thead>
+                  <tbody>
+                    ${filteredData.map(row => `<tr>
+                      <td>${row['رقم الصف']}</td>
+                      <td>${Formatter.formatCurrency(row['المدين'])}</td>
+                      <td>${Formatter.formatCurrency(row['الدائن'])}</td>
+                      <td class="${row['الفرق'] > 100 ? 'text-danger' : 'text-warning'}">${Formatter.formatCurrency(row['الفرق'])}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `;
+            break;
+            
+          case 'difference':
+            modalTitle = 'الفرق بين المدين والدائن';
+            filteredData = appInstance.state.filteredRows.slice(0, 50).map((row, idx) => ({
+              'رقم الصف': idx + 1,
+              'المدين': Formatter.toNumber(row[debitCol]) || 0,
+              'الدائن': Formatter.toNumber(row[creditCol]) || 0,
+              'الفرق': (Formatter.toNumber(row[debitCol]) - Formatter.toNumber(row[creditCol])).toFixed(2)
+            }));
+            const totalDiff = filteredData.reduce((sum, r) => sum + Math.abs(parseFloat(r['الفرق'])), 0);
+            modalContent = `
+              <div class="alert ${Math.abs(summary.difference) > 1000 ? 'alert-danger' : 'alert-info'}">
+                <strong>إجمالي الفرق: ${Formatter.formatCurrency(Math.abs(summary.difference))}</strong>
+                <p class="mb-0 small">الفرق بين إجمالي المدين والدائن</p>
+              </div>
+              <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-striped">
+                  <thead><tr><th>رقم الصف</th><th>المدين</th><th>الدائن</th><th>الفرق</th></tr></thead>
+                  <tbody>
+                    ${filteredData.map(row => `<tr>
+                      <td>${row['رقم الصف']}</td>
+                      <td>${Formatter.formatCurrency(row['المدين'])}</td>
+                      <td>${Formatter.formatCurrency(row['الدائن'])}</td>
+                      <td class="${Math.abs(row['الفرق']) > 100 ? 'text-danger' : ''}">${Formatter.formatCurrency(row['الفرق'])}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `;
+            break;
+            
+          case 'topCategory':
+            if (categoryCol && amountCol) {
+              modalTitle = `التفاصيل حسب: ${value}`;
+              filteredData = appInstance.state.filteredRows
+                .filter(row => Formatter.normalizeValue(row[categoryCol]) === value)
+                .slice(0, 50)
+                .map((row, idx) => {
+                  const d = Formatter.toNumber(row[debitCol]) || 0;
+                  const c = Formatter.toNumber(row[creditCol]) || 0;
+                  return {
+                    'رقم الصف': idx + 1,
+                    'المدين': d,
+                    'الدائن': c,
+                    'الإجمالي': d + c
+                  };
+                });
+              const categoryTotal = filteredData.reduce((sum, r) => sum + r['الإجمالي'], 0);
+              modalContent = `
+                <div class="alert alert-success">
+                  <strong>إجمالي ${value}: ${Formatter.formatCurrency(categoryTotal)}</strong>
+                  <p class="mb-0 small">${filteredData.length} سجل</p>
+                </div>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                  <table class="table table-sm table-striped">
+                    <thead><tr><th>رقم الصف</th><th>المدين</th><th>الدائن</th><th>الإجمالي</th></tr></thead>
+                    <tbody>
+                      ${filteredData.map(row => `<tr>
+                        <td>${row['رقم الصف']}</td>
+                        <td>${Formatter.formatCurrency(row['المدين'])}</td>
+                        <td>${Formatter.formatCurrency(row['الدائن'])}</td>
+                        <td>${Formatter.formatCurrency(row['الإجمالي'])}</td>
+                      </tr>`).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+            }
+            break;
+            
+          case 'executionRate':
+            modalTitle = 'نسبة التنفيذ';
+            const execRate = summary.executionRate;
+            const execStatus = execRate > 100 ? 'critical' : execRate > 90 ? 'warning' : 'good';
+            const execColor = execStatus === 'critical' ? '#dc3545' : execStatus === 'warning' ? '#ffc107' : '#198754';
+            const execIcon = execStatus === 'critical' ? 'x-circle' : execStatus === 'warning' ? 'exclamation-triangle' : 'check-circle';
+            modalContent = `
+              <div class="text-center mb-3">
+                <div style="font-size: 48px; color: ${execColor};">
+                  <i class="bi bi-${execIcon}"></i>
+                </div>
+                <h2 style="color: ${execColor};">${execRate !== null ? execRate.toFixed(1) + '%' : 'غير متاح'}</h2>
+                <p class="text-muted">${execStatus === 'critical' ? 'تجاوز الميزانية!' : execStatus === 'warning' ? 'اقترب من الحد الأقصى' : 'ضمن النطاق المقبول'}</p>
+              </div>
+              <div class="progress" style="height: 20px;">
+                <div class="progress-bar" role="progressbar" 
+                  style="width: ${Math.min(execRate || 0, 100)}%; background-color: ${execColor};">
+                  ${Math.min(execRate || 0, 100).toFixed(0)}%
+                </div>
+              </div>
+              ${summary.hasBudget ? `<p class="mt-2 small text-muted">الموازنة: ${Formatter.formatCurrency(summary.totalDebit)} | الفعلي: ${Formatter.formatCurrency(summary.totalCredit)}</p>` : '<p class="mt-2 small text-muted">لا توجد بيانات موازنة</p>'}
+            `;
+            break;
+            
+          default:
+            modalTitle = 'التفاصيل';
+            filteredData = appInstance.state.filteredRows.slice(0, 20);
+            modalContent = `<div class="text-center p-3">انقر على أي مؤشر للاطلاع على التفاصيل</div>`;
+        }
+
+        const modalHtml = `
+          <div class="modal fade" id="drillDownModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                  <h5 class="modal-title">📊 ${modalTitle}</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  ${modalContent}
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        const existingModal = document.getElementById('drillDownModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('drillDownModal'));
+        modal.show();
+      }
+
+      static drillDownChart(chartType, appInstance) {
+        if (!appInstance) return;
+        
+        const dataTab = document.querySelector('[data-bs-target="#dataTab"]');
+        if (dataTab) {
+          bootstrap.Tab.getOrCreateInstance(dataTab).show();
+          appInstance.showToast('عرض الجدول للتفصيل - انقر على أي صف لرؤية المزيد', 'info');
+        }
+      }
+    }
+
+    /**
+     * DataQualityScorer - Calculate data quality score
+     */
+    class DataQualityScorer {
+      static calculateScore(validationResult, totalRows) {
+        if (totalRows === 0) return { score: 100, grade: 'A+', color: '#198754', status: 'ممتاز' };
+        
+        let score = 100;
+        const issues = [];
+        
+        const unbalancedRatio = validationResult.balanceCheck.length / totalRows;
+        if (unbalancedRatio > 0.2) {
+          score -= 40;
+          issues.push({ type: 'unbalanced', weight: 40, count: validationResult.balanceCheck.length });
+        } else if (unbalancedRatio > 0.1) {
+          score -= 25;
+          issues.push({ type: 'unbalanced', weight: 25, count: validationResult.balanceCheck.length });
+        } else if (unbalancedRatio > 0.05) {
+          score -= 10;
+          issues.push({ type: 'unbalanced', weight: 10, count: validationResult.balanceCheck.length });
+        }
+        
+        const duplicateRatio = (validationResult.duplicateCheck?.length || 0) / totalRows;
+        if (duplicateRatio > 0.1) {
+          score -= 20;
+          issues.push({ type: 'duplicates', weight: 20, count: validationResult.duplicateCheck?.length || 0 });
+        } else if (duplicateRatio > 0.05) {
+          score -= 10;
+          issues.push({ type: 'duplicates', weight: 10, count: validationResult.duplicateCheck?.length || 0 });
+        }
+        
+        const missingRatio = (validationResult.missingData?.total || 0) / totalRows;
+        if (missingRatio > 0.2) {
+          score -= 20;
+          issues.push({ type: 'missing', weight: 20, count: validationResult.missingData?.total || 0 });
+        } else if (missingRatio > 0.1) {
+          score -= 10;
+          issues.push({ type: 'missing', weight: 10, count: validationResult.missingData?.total || 0 });
+        }
+        
+        const outlierRatio = (validationResult.outlierCheck?.count || 0) / totalRows;
+        if (outlierRatio > 0.05) {
+          score -= 10;
+          issues.push({ type: 'outliers', weight: 10, count: validationResult.outlierCheck?.count || 0 });
+        }
+        
+        score = Math.max(0, Math.round(score));
+        
+        let grade, color, status;
+        if (score >= 90) {
+          grade = 'A+';
+          color = '#198754';
+          status = 'ممتاز';
+        } else if (score >= 80) {
+          grade = 'A';
+          color = '#20c997';
+          status = 'جيد جداً';
+        } else if (score >= 70) {
+          grade = 'B';
+          color = '#0dcaf0';
+          status = 'جيد';
+        } else if (score >= 60) {
+          grade = 'C';
+          color = '#ffc107';
+          status = 'مقبول';
+        } else if (score >= 50) {
+          grade = 'D';
+          color = '#fd7e14';
+          status = 'ضعيف';
+        } else {
+          grade = 'F';
+          color = '#dc3545';
+          status = 'غير مقبول';
+        }
+        
+        return {
+          score,
+          grade,
+          color,
+          status,
+          issues,
+          totalIssues: issues.reduce((sum, i) => sum + i.count, 0)
+        };
+      }
+
+      static renderScoreElement(scoreData) {
+        return `
+          <div class="d-flex align-items-center gap-3">
+            <div class="position-relative" style="width: 60px; height: 60px;">
+              <svg viewBox="0 0 36 36" class="circular-chart">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eee" stroke-width="3"/>
+                <path class="circle" stroke-dasharray="${scoreData.score}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${scoreData.color}" stroke-width="3"/>
+              </svg>
+              <div class="position-absolute top-50 start-50 translate-middle" style="font-size: 14px; font-weight: bold; color: ${scoreData.color};">${scoreData.grade}</div>
+            </div>
+            <div>
+              <div style="font-size: 20px; font-weight: bold; color: ${scoreData.color};">${scoreData.score}%</div>
+              <div class="text-muted small">${scoreData.status}</div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * BudgetControlClassifier - Budget status classification
+     */
+    class BudgetControlClassifier {
+      static classify(summary) {
+        if (!summary.hasBudget || summary.executionRate === null) {
+          return {
+            status: 'no_budget',
+            label: 'لا توجد موازنة',
+            color: '#6c757d',
+            icon: 'bi-inbox',
+            class: 'secondary',
+            message: 'لا تتوفر بيانات الموازنة للمقارنة'
+          };
+        }
+        
+        const rate = summary.executionRate;
+        
+        if (rate > 100) {
+          return {
+            status: 'critical',
+            label: 'تجاوز الميزانية',
+            color: '#dc3545',
+            icon: 'bi-exclamation-triangle-fill',
+            class: 'danger',
+            message: `تم تجاوز الموازنة بنسبة ${(rate - 100).toFixed(1)}%`,
+            action: 'مراجعة المصروفات العاجلة'
+          };
+        }
+        
+        if (rate > 90) {
+          return {
+            status: 'warning',
+            label: 'اقترب من الحد',
+            color: '#ffc107',
+            icon: 'bi-exclamation-circle-fill',
+            class: 'warning',
+            message: `نسبة التنفيذ ${rate.toFixed(1)}% -剩下 ${(100 - rate).toFixed(1)}% متبقي`,
+            action: 'مراقبة المصروفات'
+          };
+        }
+        
+        if (rate >= 70 && rate <= 90) {
+          return {
+            status: 'optimal',
+            label: 'ضمن الخطة',
+            color: '#198754',
+            icon: 'bi-check-circle-fill',
+            class: 'success',
+            message: `نسبة التنفيذ ${rate.toFixed(1)}% - الوضع طبيعي`,
+            action: 'متابعة شهرية'
+          };
+        }
+        
+        if (rate < 70) {
+          return {
+            status: 'low',
+            label: '低于预期',
+            color: '#0dcaf0',
+            icon: 'bi-info-circle-fill',
+            class: 'info',
+            message: `نسبة التنفيذ ${rate.toFixed(1)}% - أقل من المتوقع`,
+            action: 'مراجعة进度'
+          };
+        }
+        
+        return {
+          status: 'neutral',
+          label: 'غير محدد',
+          color: '#6c757d',
+          icon: 'bi-question-circle-fill',
+          class: 'secondary',
+          message: 'لا يمكن تحديد الحالة'
+        };
+      }
+    }
+
+    /**
+     * AuditReportGenerator - Generate audit report with conclusions
+     */
+    class AuditReportGenerator {
+      static generate(validationResult, qualityScore, totalRows) {
+        const issues = [];
+        
+        if (validationResult.balanceCheck?.length > 0) {
+          const ratio = validationResult.balanceCheck.length / totalRows;
+          issues.push({
+            type: 'unbalanced',
+            severity: ratio > 0.1 ? 'high' : ratio > 0.05 ? 'medium' : 'low',
+            count: validationResult.balanceCheck.length,
+            title: 'عدم توازن القيود',
+            description: `${validationResult.balanceCheck.length} قيد غير متوازن`
+          });
+        }
+        
+        if (validationResult.duplicateCheck?.length > 0) {
+          const ratio = validationResult.duplicateCheck.length / totalRows;
+          issues.push({
+            type: 'duplicates',
+            severity: ratio > 0.1 ? 'high' : ratio > 0.05 ? 'medium' : 'low',
+            count: validationResult.duplicateCheck.length,
+            title: 'قيود مكررة',
+            description: `${validationResult.duplicateCheck.length} قيد مكرر`
+          });
+        }
+        
+        if (validationResult.missingData?.total > 0) {
+          issues.push({
+            type: 'missing',
+            severity: 'medium',
+            count: validationResult.missingData.total,
+            title: 'بيانات مفقودة',
+            description: `${validationResult.missingData.total} حقل مفقود`
+          });
+        }
+        
+        if (validationResult.outlierCheck?.count > 0) {
+          issues.push({
+            type: 'outliers',
+            severity: 'low',
+            count: validationResult.outlierCheck.count,
+            title: 'قيم شاذة',
+            description: `${validationResult.outlierCheck.count} قيمة شاذة`
+          });
+        }
+
+        let conclusion, conclusionStatus, conclusionColor, conclusionIcon;
+        
+        const criticalIssues = issues.filter(i => i.severity === 'high').length;
+        const mediumIssues = issues.filter(i => i.severity === 'medium').length;
+        
+        if (criticalIssues > 0 || qualityScore.score < 50) {
+          conclusion = 'حرج';
+          conclusionStatus = 'critical';
+          conclusionColor = '#dc3545';
+          conclusionIcon = 'bi-x-circle-fill';
+        } else if (mediumIssues > 0 || qualityScore.score < 70) {
+          conclusion = 'تحذير';
+          conclusionStatus = 'warning';
+          conclusionColor = '#ffc107';
+          conclusionIcon = 'bi-exclamation-triangle-fill';
+        } else {
+          conclusion = 'آمن';
+          conclusionStatus = 'safe';
+          conclusionColor = '#198754';
+          conclusionIcon = 'bi-check-circle-fill';
+        }
+
+        const html = `
+          <div class="audit-conclusion mb-3 p-3 rounded" style="background: ${conclusionColor}15; border-right: 4px solid ${conclusionColor};">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi ${conclusionIcon}" style="font-size: 24px; color: ${conclusionColor};"></i>
+              <div>
+                <strong style="font-size: 18px; color: ${conclusionColor};">النتيجة: ${conclusion}</strong>
+                <div class="text-muted small">${issues.length === 0 ? 'لا توجد مشاكل جوهرية في البيانات' : `تم اكتشاف ${issues.length} مشكلة`}</div>
+              </div>
+            </div>
+          </div>
+          <div class="audit-issues">
+            ${issues.length === 0 ? '<div class="text-success"><i class="bi bi-check-all"></i> جميع الفحوصات Passed</div>' : issues.map(issue => `
+              <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded" style="background: ${issue.severity === 'high' ? '#fee2e2' : issue.severity === 'medium' ? '#fff3cd' : '#d1ecf1'};">
+                <div>
+                  <strong>${issue.title}</strong>
+                  <div class="small text-muted">${issue.description}</div>
+                </div>
+                <span class="badge bg-${issue.severity === 'high' ? 'danger' : issue.severity === 'medium' ? 'warning' : 'info'}">${issue.severity === 'high' ? 'حرج' : issue.severity === 'medium' ? 'متوسط' : 'منخفض'}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        const summaryHtml = `
+          <div class="text-center mb-3">
+            ${DataQualityScorer.renderScoreElement(qualityScore)}
+          </div>
+          <div class="row text-center">
+            <div class="col-4">
+              <div class="p-2 rounded" style="background: var(--bg-tertiary);">
+                <div class="text-danger">${validationResult.balanceCheck?.length || 0}</div>
+                <small class="text-muted">غير متوازن</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 rounded" style="background: var(--bg-tertiary);">
+                <div class="text-warning">${validationResult.duplicateCheck?.length || 0}</div>
+                <small class="text-muted">مكرر</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 rounded" style="background: var(--bg-tertiary);">
+                <div class="text-info">${validationResult.missingData?.total || 0}</div>
+                <small class="text-muted">مفقود</small>
+              </div>
+            </div>
+          </div>
+        `;
+
+        return { html, summaryHtml, conclusion, conclusionStatus, issues };
+      }
+
+      static generateProfessionalReport(validationResult, qualityScore, summary, totalRows) {
+        const issues = [];
+        if (validationResult.balanceCheck?.length > 0) issues.push(...validationResult.balanceCheck.map(i => ({ type: 'unbalanced', ...i })));
+        if (validationResult.duplicateCheck?.length > 0) issues.push(...validationResult.duplicateCheck.map(i => ({ type: 'duplicates', ...i })));
+        
+        const highSeverity = issues.filter(i => i.severity === 'high').length;
+        const mediumSeverity = issues.filter(i => i.severity === 'medium').length;
+        
+        let status, statusLabel, statusColor, statusIcon;
+        if (qualityScore.score >= 90 && highSeverity === 0) {
+          status = 'validated';
+          statusLabel = 'تم التحقق';
+          statusColor = '#198754';
+          statusIcon = 'bi-check-shield-fill';
+        } else if (qualityScore.score >= 70 && highSeverity <= 2) {
+          status = 'warning';
+          statusLabel = 'يحتاج مراجعة';
+          statusColor = '#ffc107';
+          statusIcon = 'bi-exclamation-triangle-fill';
+        } else {
+          status = 'not_reliable';
+          statusLabel = 'غير موثوق';
+          statusColor = '#dc3545';
+          statusIcon = 'bi-exclamation-octagon-fill';
+        }
+
+        const affectedRecords = new Set();
+        issues.forEach(i => { if (i.index) affectedRecords.add(i.index); });
+        
+        return {
+          status,
+          statusLabel,
+          statusColor,
+          statusIcon,
+          totalIssues: issues.length,
+          affectedRecordsCount: affectedRecords.size,
+          severityDistribution: { high: highSeverity, medium: mediumSeverity, low: issues.length - highSeverity - mediumSeverity },
+          recommendations: this.generateRecommendations(qualityScore, summary, issues),
+          professionalConclusion: this.generateProfessionalConclusion(qualityScore, issues)
+        };
+      }
+
+      static generateRecommendations(qualityScore, summary, issues) {
+        const recommendations = [];
+        
+        if (qualityScore.score < 90) {
+          recommendations.push({ priority: 'high', text: 'مراجعة جودة البيانات قبل اتخاذ قرارات مالية', action: 'تحسين جودة البيانات' });
+        }
+        
+        const unbalancedIssues = issues.filter(i => i.type === 'unbalanced');
+        if (unbalancedIssues.length > 0) {
+          recommendations.push({ priority: 'high', text: `تصحيح ${unbalancedIssues.length} قيد غير متوازن`, action: 'توازن القيود' });
+        }
+        
+        if (summary.executionRate > 100) {
+          recommendations.push({ priority: 'critical', text: `تجاوز الموازنة بنسبة ${(summary.executionRate - 100).toFixed(1)}%`, action: 'مراجعة المصروفات' });
+        } else if (summary.executionRate > 90) {
+          recommendations.push({ priority: 'medium', text: 'اقتربت المصروفات من حد الموازنة', action: 'مراقبة مستمرة' });
+        }
+        
+        if (recommendations.length === 0) {
+          recommendations.push({ priority: 'low', text: 'البيانات سليمة - المتابعة الدوريةية', action: 'متابعة منتظمة' });
+        }
+        
+        return recommendations;
+      }
+
+      static generateProfessionalConclusion(qualityScore, issues) {
+        if (qualityScore.score >= 95 && issues.length === 0) {
+          return '✅ البيانات المالية موثوقة وصحيحة. يمكن الاعتماد على التحليلات واتخاذ القرارات بناءً عليها.';
+        } else if (qualityScore.score >= 80) {
+          return '⚠️ البيانات مالية مقبولة مع بعض الملاحظات. يُنصح بمعالجة المشاكل قبل اتخاذ قرارات مالية مهمة.';
+        } else if (qualityScore.score >= 60) {
+          return '⚠️ البيانات المالية تحتوي على مشاكل متعددة. يجب مراجعتها وتصحيحها قبل الاعتماد عليها.';
+        } else {
+          return '🚨 البيانات المالية غير موثوقة. لا يُنصح بالاعتماد عليها في اتخاذ القرارات المالية.';
+        }
+      }
+    }
+
+    /**
+     * InsightConfidenceSystem - Calculate confidence level for insights
+     */
+    class InsightConfidenceSystem {
+      static calculateConfidence(validationResult, totalRows) {
+        if (totalRows === 0) return { level: 'low', percentage: 0, factors: [] };
+        
+        let confidenceScore = 100;
+        const factors = [];
+        
+        const balancedRatio = 1 - (validationResult.balanceCheck?.length || 0) / totalRows;
+        if (balancedRatio < 0.8) {
+          confidenceScore -= 30;
+          factors.push({ factor: 'عدم توازن القيود', impact: 'high', deduction: 30 });
+        } else if (balancedRatio < 0.95) {
+          confidenceScore -= 15;
+          factors.push({ factor: 'عدم توازن القيود', impact: 'medium', deduction: 15 });
+        }
+        
+        const validRecordsRatio = 1 - ((validationResult.missingData?.total || 0) / totalRows);
+        if (validRecordsRatio < 0.7) {
+          confidenceScore -= 25;
+          factors.push({ factor: 'بيانات مفقودة', impact: 'high', deduction: 25 });
+        } else if (validRecordsRatio < 0.9) {
+          confidenceScore -= 10;
+          factors.push({ factor: 'بيانات مفقودة', impact: 'medium', deduction: 10 });
+        }
+        
+        const duplicateRatio = 1 - ((validationResult.duplicateCheck?.length || 0) / totalRows);
+        if (duplicateRatio < 0.9) {
+          confidenceScore -= 15;
+          factors.push({ factor: 'سجلات مكررة', impact: 'medium', deduction: 15 });
+        }
+        
+        const cleanDataRatio = 1 - ((validationResult.outlierCheck?.count || 0) / totalRows);
+        if (cleanDataRatio < 0.95) {
+          confidenceScore -= 10;
+          factors.push({ factor: 'قيم شاذة', impact: 'low', deduction: 10 });
+        }
+        
+        confidenceScore = Math.max(0, Math.min(100, Math.round(confidenceScore)));
+        
+        let level, levelAr, color;
+        if (confidenceScore >= 90) {
+          level = 'high';
+          levelAr = 'عالية';
+          color = '#198754';
+        } else if (confidenceScore >= 70) {
+          level = 'medium';
+          levelAr = 'متوسطة';
+          color = '#ffc107';
+        } else {
+          level = 'low';
+          levelAr = 'منخفضة';
+          color = '#dc3545';
+        }
+        
+        return {
+          level,
+          levelAr,
+          percentage: confidenceScore,
+          color,
+          factors,
+          isReliable: confidenceScore >= 70
+        };
+      }
+
+      static renderConfidenceBadge(confidence) {
+        return `<span class="badge" style="background: ${confidence.color}20; color: ${confidence.color}; border: 1px solid ${confidence.color};">
+          <i class="bi bi-shield-check"></i> ثقة ${confidence.levelAr} (${confidence.percentage}%)
+        </span>`;
+      }
+    }
+
+    /**
+     * DecisionSupportEngine - Generate business recommendations
+     */
+    class DecisionSupportEngine {
+      static generateRecommendations(summary, validationResult, qualityScore, insights) {
+        const recommendations = [];
+        
+        if (summary.executionRate > 100) {
+          recommendations.push({
+            type: 'critical',
+            icon: 'bi-exclamation-triangle-fill',
+            title: 'تجاوز الميزانية',
+            message: `تم تجاوز الموازنة بنسبة ${(summary.executionRate - 100).toFixed(1)}%. يتطلب إجراءً عاجلاً.`,
+            action: 'مراجعة المصروفات العاجلة',
+            priority: 1
+          });
+        } else if (summary.executionRate > 90) {
+          recommendations.push({
+            type: 'warning',
+            icon: 'bi-exclamation-circle-fill',
+            title: 'اقتربت من الحد الأقصى',
+            message: `نسبة التنفيذ ${summary.executionRate.toFixed(1)}%.剩余 ${(100 - summary.executionRate).toFixed(1)}% فقط.`,
+            action: 'مراقبة المصروفات',
+            priority: 2
+          });
+        }
+        
+        if (qualityScore.score < 70) {
+          recommendations.push({
+            type: 'danger',
+            icon: 'bi-exclamation-octagon-fill',
+            title: 'جودة البيانات منخفضة',
+            message: `درجة الجودة ${qualityScore.score}%. قد تؤثر على دقة التحليلات.`,
+            action: 'تحسين جودة البيانات',
+            priority: 1
+          });
+        }
+        
+        if (validationResult.balanceCheck?.length > 0) {
+          const ratio = validationResult.balanceCheck.length / summary.totalRows;
+          if (ratio > 0.1) {
+            recommendations.push({
+              type: 'danger',
+              icon: 'bi-journal-x',
+              title: 'قيود غير متوازنة',
+              message: `${validationResult.balanceCheck.length} قيد غير متوازن (${(ratio * 100).toFixed(1)}%).`,
+              action: 'تصحيح القيود',
+              priority: 1
+            });
+          }
+        }
+        
+        if (insights?.trends?.length > 0) {
+          const lastTrend = insights.trends[insights.trends.length - 1];
+          if (lastTrend && Math.abs(lastTrend.change) > 30) {
+            const direction = lastTrend.direction === 'up' ? 'ارتفاع' : 'انخفاض';
+            recommendations.push({
+              type: lastTrend.change > 0 ? 'warning' : 'info',
+              icon: 'bi-graph-up-arrow',
+              title: `تغير ${direction} في المصروفات`,
+              message: `${direction} بنسبة ${Math.abs(lastTrend.change).toFixed(1)}% مقارنة بالشهر السابق.`,
+              action: 'مراجعة الأسباب',
+              priority: 3
+            });
+          }
+        }
+        
+        if (validationResult.outlierCheck?.count > 0) {
+          recommendations.push({
+            type: 'info',
+            icon: 'bi bi-patch-exclamation',
+            title: 'قيم شاذة مكتشفة',
+            message: `تم اكتشاف ${validationResult.outlierCheck.count} قيمة شاذة تحتاج مراجعة.`,
+            action: 'فحص القيم الشاذة',
+            priority: 4
+          });
+        }
+        
+        if (recommendations.length === 0) {
+          recommendations.push({
+            type: 'success',
+            icon: 'bi-check-circle-fill',
+            title: 'الوضع المالي مستقر',
+            message: 'جميع المؤشرات طبيعية. لا توجد إجراءات مطلوبة.',
+            action: 'متابعة دورية',
+            priority: 5
+          });
+        }
+        
+        return recommendations.sort((a, b) => a.priority - b.priority);
+      }
+
+      static renderRecommendationCard(rec) {
+        const typeColors = { critical: '#dc3545', danger: '#dc3545', warning: '#ffc107', info: '#0dcaf0', success: '#198754' };
+        const color = typeColors[rec.type] || '#6c757d';
+        return `
+          <div class="recommendation-card mb-2 p-3 rounded" style="border-right: 4px solid ${color}; background: ${color}10;">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi ${rec.icon}" style="color: ${color}; font-size: 20px;"></i>
+              <div class="flex-grow-1">
+                <strong style="color: ${color};">${rec.title}</strong>
+                <div class="small text-muted mt-1">${rec.message}</div>
+                <div class="mt-2"><span class="badge bg-${rec.type === 'critical' || rec.type === 'danger' ? 'danger' : rec.type === 'warning' ? 'warning' : rec.type === 'success' ? 'success' : 'info'}">${rec.action}</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * ReportStatusManager - Manage report validation status
+     */
+    class ReportStatusManager {
+      static determineStatus(qualityScore, validationResult, totalRows) {
+        if (totalRows === 0) return { status: 'empty', label: 'لا توجد بيانات', color: '#6c757d', icon: 'bi-inbox' };
+        
+        const criticalIssues = (validationResult.balanceCheck?.length || 0) + (validationResult.duplicateCheck?.length || 0);
+        const criticalRatio = criticalIssues / totalRows;
+        
+        if (qualityScore.score >= 90 && criticalRatio < 0.01) {
+          return { status: 'validated', label: 'تم التحقق', color: '#198754', icon: 'bi-check-shield-fill', reliable: true };
+        } else if (qualityScore.score >= 70 && criticalRatio < 0.1) {
+          return { status: 'warning', label: 'يحتاج مراجعة', color: '#ffc107', icon: 'bi-exclamation-triangle-fill', reliable: true };
+        } else {
+          return { status: 'not_reliable', label: 'غير موثوق', color: '#dc3545', icon: 'bi-exclamation-octagon-fill', reliable: false };
+        }
+      }
+
+      static renderStatusBadge(status) {
+        return `<span class="badge d-inline-flex align-items-center gap-1" style="background: ${status.color}20; color: ${status.color}; border: 1px solid ${status.color}; padding: 4px 8px;">
+          <i class="bi ${status.icon}"></i> ${status.label}
+        </span>`;
+      }
+    }
+
+    /**
+     * StressTestRunner - Handle edge cases and stress testing
+     */
+    class StressTestRunner {
+      static testDataIntegrity(rows) {
+        const results = {
+          passed: true,
+          issues: [],
+          stats: { total: rows.length, empty: 0, invalid: 0, nulls: 0, negative: 0, stringsInNumeric: 0 }
+        };
+        
+        if (!Array.isArray(rows) || rows.length === 0) {
+          results.issues.push({ type: 'no_data', message: 'لا توجد بيانات للاختبار' });
+          results.passed = false;
+          return results;
+        }
+        
+        const headers = Object.keys(rows[0] || {});
+        
+        rows.forEach((row, idx) => {
+          if (!row || typeof row !== 'object') {
+            results.issues.push({ type: 'invalid_row', row: idx, message: 'صف غير صالح' });
+            results.passed = false;
+            results.stats.invalid++;
+            return;
+          }
+          
+          const values = Object.values(row);
+          if (values.every(v => v === null || v === '' || v === undefined)) {
+            results.stats.empty++;
+            results.issues.push({ type: 'empty_row', row: idx, message: 'صف فارغ' });
+          }
+          
+          values.forEach((val, colIdx) => {
+            if (val === null || val === '') results.stats.nulls++;
+            if (typeof val === 'number' && val < 0) {
+              results.stats.negative++;
+              results.issues.push({ type: 'negative_value', row: idx, col: headers[colIdx], value: val });
+            }
+            if (typeof val === 'string' && /^-?\d+\.?\d*$/.test(val) && headers[colIdx]?.toLowerCase().includes('amount')) {
+              results.stats.stringsInNumeric++;
+            }
+          });
+        });
+        
+        if (results.stats.empty > rows.length * 0.5) {
+          results.passed = false;
+          results.issues.push({ type: 'too_many_empty', message: `${results.stats.empty} صف فارغ من أصل ${rows.length}` });
+        }
+        
+        return results;
+      }
+
+      static sanitizeData(rows) {
+        if (!Array.isArray(rows)) return [];
+        
+        return rows.filter(row => row && typeof row === 'object').map(row => {
+          const sanitized = {};
+          Object.entries(row).forEach(([key, val]) => {
+            if (val === null || val === undefined || val === '') {
+              sanitized[key] = null;
+            } else if (typeof val === 'string') {
+              const trimmed = val.trim();
+              sanitized[key] = isNaN(trimmed) ? trimmed : (trimmed.includes('.') ? parseFloat(trimmed) : parseInt(trimmed, 10));
+            } else {
+              sanitized[key] = val;
+            }
+          });
+          return sanitized;
+        });
+      }
+
+      static handleEdgeCase(value, defaultValue = 0) {
+        if (value === null || value === undefined || value === '') return defaultValue;
+        if (typeof value === 'number' && isNaN(value)) return defaultValue;
+        if (typeof value === 'string') {
+          const num = parseFloat(value);
+          return isNaN(num) ? defaultValue : num;
+        }
+        return value;
       }
     }
 
@@ -2507,47 +3822,39 @@
        * Calculate financial summary for KPIs and budget tab
        */
       calculateFinancialSummary() {
-        const { debitCol, creditCol, amountCol } = this.resolveFinancialColumns();
+        const { debitCol, creditCol, amountCol, categoryCol, dateCol } = this.resolveFinancialColumns();
+        
+        const financialColumns = {
+          debitCol,
+          creditCol,
+          amountCol,
+          categoryCol,
+          dateCol
+        };
 
-        let totalDebit = 0;
-        let totalCredit = 0;
-        let unbalanced = 0;
+        const validationResult = FinancialValidator.analyzeFinancialData(
+          this.state.filteredRows,
+          financialColumns
+        );
 
-        this.state.filteredRows.forEach(row => {
-          const debit = Formatter.toNumber(row[debitCol]) || 0;
-          const credit = Formatter.toNumber(row[creditCol]) || 0;
-
-          totalDebit += debit;
-          totalCredit += credit;
-
-          if (debitCol !== creditCol && Math.abs(debit - credit) > 0.01) {
-            unbalanced++;
-          }
-        });
-
-        if (totalDebit === 0 && totalCredit === 0 && amountCol) {
-          const totalAmount = this.state.filteredRows.reduce((sum, row) => {
-            return sum + (Formatter.toNumber(row[amountCol]) || 0);
-          }, 0);
-          totalDebit = totalAmount;
-          totalCredit = totalAmount;
-        }
-
-        const approvedBudget = totalDebit;
-        const actualSpent = totalCredit;
-        const remaining = Math.max(approvedBudget - actualSpent, 0);
-        const deviation = Math.abs(approvedBudget - actualSpent);
-        const executionRate = approvedBudget > 0 ? (actualSpent / approvedBudget) * 100 : 0;
-
+        const summary = validationResult.summary;
+        
         return {
-          totalDebit,
-          totalCredit,
-          unbalanced,
-          approvedBudget,
-          actualSpent,
-          remaining,
-          deviation,
-          executionRate
+          totalDebit: summary.totalDebit,
+          totalCredit: summary.totalCredit,
+          difference: summary.difference,
+          balancedRows: summary.balancedRows,
+          unbalancedRows: summary.unbalancedRows,
+          hasBudget: summary.hasBudget,
+          executionRate: summary.executionRate,
+          executionRateNote: summary.executionRateNote,
+          validation: {
+            balanceCheck: validationResult.balanceCheck,
+            duplicateCheck: validationResult.duplicateCheck,
+            missingData: validationResult.missingData,
+            outlierCheck: validationResult.outlierCheck,
+            warnings: FinancialValidator.getValidationWarnings(validationResult)
+          }
         };
       },
 
@@ -2574,16 +3881,113 @@
 
         document.getElementById('totalDebit').textContent = Formatter.formatCurrency(summary.totalDebit);
         document.getElementById('totalCredit').textContent = Formatter.formatCurrency(summary.totalCredit);
-        document.getElementById('unbalancedEntries').textContent = Formatter.formatNumber(summary.unbalanced);
-        document.getElementById('executionRate').textContent = Formatter.formatNumber(summary.executionRate) + '%';
+        document.getElementById('unbalancedEntries').textContent = Formatter.formatNumber(summary.unbalancedRows);
+        document.getElementById('totalDifference').textContent = Formatter.formatCurrency(Math.abs(summary.difference));
+        
+        const diffElement = document.getElementById('totalDifference');
+        if (Math.abs(summary.difference) > 0.01) {
+          diffElement.classList.add('text-danger');
+        } else {
+          diffElement.classList.remove('text-danger');
+        }
 
-        document.getElementById('approvedBudget').textContent = Formatter.formatCurrency(summary.approvedBudget);
-        document.getElementById('actualSpent').textContent = Formatter.formatCurrency(summary.actualSpent);
-        document.getElementById('remaining').textContent = Formatter.formatCurrency(summary.remaining);
-        document.getElementById('deviation').textContent = Formatter.formatCurrency(summary.deviation);
+        if (summary.executionRate !== null) {
+          document.getElementById('executionRate').textContent = Formatter.formatNumber(summary.executionRate) + '%';
+          const execElement = document.getElementById('executionRate');
+          if (summary.executionRate > 100) {
+            execElement.classList.add('text-danger');
+          } else {
+            execElement.classList.remove('text-danger');
+          }
+        } else {
+          document.getElementById('executionRate').textContent = '—';
+        }
+
+        if (summary.hasBudget) {
+          document.getElementById('approvedBudget').textContent = Formatter.formatCurrency(summary.totalDebit);
+          document.getElementById('actualSpent').textContent = Formatter.formatCurrency(summary.totalCredit);
+          document.getElementById('remaining').textContent = Math.max(summary.totalDebit - summary.totalCredit, 0).toLocaleString() + ' ج.م';
+          document.getElementById('deviation').textContent = Math.abs(summary.totalDebit - summary.totalCredit).toLocaleString() + ' ج.م';
+        } else {
+          document.getElementById('approvedBudget').textContent = '—';
+          document.getElementById('actualSpent').textContent = '—';
+          document.getElementById('remaining').textContent = '—';
+          document.getElementById('deviation').textContent = '—';
+        }
+
+        const decision = InsightEngine.getDecisionIndicator(summary);
+        const decisionCard = document.getElementById('decisionIndicatorCard');
+        const decisionIcon = document.getElementById('decisionIndicatorIcon');
+        const decisionText = document.getElementById('decisionIndicator');
+        
+        if (decisionCard && decisionIcon && decisionText) {
+          decisionCard.className = `kpi-card kpi-${decision.status === 'critical' ? 'danger' : decision.status === 'warning' ? 'warning' : decision.status === 'good' ? 'success' : 'info'}`;
+          decisionIcon.innerHTML = `<i class="bi bi-${decision.icon}"></i>`;
+          decisionText.textContent = decision.label;
+          decisionCard.style.borderLeft = `4px solid ${decision.color}`;
+        }
+
+        const qualityScore = DataQualityScorer.calculateScore(summary.validation || {}, total);
+        const dataQualityCard = document.getElementById('dataQualityCard');
+        const dataQualityScore = document.getElementById('dataQualityScore');
+        if (dataQualityCard && dataQualityScore) {
+          dataQualityCard.className = `kpi-card kpi-${qualityScore.score >= 70 ? 'success' : qualityScore.score >= 50 ? 'warning' : 'danger'}`;
+          dataQualityCard.style.borderLeft = `4px solid ${qualityScore.color}`;
+          dataQualityScore.innerHTML = DataQualityScorer.renderScoreElement(qualityScore);
+          dataQualityScore.style.cursor = 'pointer';
+          dataQualityScore.onclick = () => DrillDownManager.showDrillDownModal('quality', qualityScore, this);
+        }
+
+        const budgetControl = BudgetControlClassifier.classify(summary);
+        const budgetControlCard = document.getElementById('budgetControlCard');
+        const budgetControlStatus = document.getElementById('budgetControlStatus');
+        if (budgetControlCard && budgetControlStatus) {
+          budgetControlCard.className = `kpi-card kpi-${budgetControl.class}`;
+          budgetControlCard.style.borderLeft = `4px solid ${budgetControl.color}`;
+          budgetControlStatus.innerHTML = `<div style="font-size: 14px;"><i class="bi bi-${budgetControl.icon}"></i> ${budgetControl.label}</div>`;
+          budgetControlStatus.style.cursor = 'pointer';
+          budgetControlStatus.onclick = () => DrillDownManager.showDrillDownModal('budgetControl', budgetControl, this);
+        }
+
+        if (summary.validation) {
+          const auditReport = AuditReportGenerator.generate(summary.validation, qualityScore, total);
+          const professionalReport = AuditReportGenerator.generateProfessionalReport(summary.validation, qualityScore, summary, total);
+          const auditContent = document.getElementById('auditReportContent');
+          const qualityContent = document.getElementById('qualitySummaryContent');
+          const recommendationsContent = document.getElementById('recommendationsContent');
+          const reportStatusBadge = document.getElementById('reportStatusBadge');
+          
+          if (auditContent) {
+            auditContent.innerHTML = auditReport.html;
+          }
+          if (qualityContent) qualityContent.innerHTML = auditReport.summaryHtml;
+          
+          if (reportStatusBadge) {
+            reportStatusBadge.innerHTML = ReportStatusManager.renderStatusBadge(professionalReport);
+          }
+          
+          const insights = InsightEngine.generateInsights(this.state.filteredRows, this.state.headers, summary);
+          const confidence = InsightConfidenceSystem.calculateConfidence(summary.validation, total);
+          const recommendations = DecisionSupportEngine.generateRecommendations(summary, summary.validation, qualityScore, insights);
+          
+          if (recommendationsContent) {
+            recommendationsContent.innerHTML = `
+              <div class="mb-2">${InsightConfidenceSystem.renderConfidenceBadge(confidence)}</div>
+              ${recommendations.map(rec => DecisionSupportEngine.renderRecommendationCard(rec)).join('')}
+              <div class="mt-3 p-2 rounded" style="background: ${professionalReport.statusColor}10; border-right: 3px solid ${professionalReport.statusColor};">
+                <small class="text-muted">${professionalReport.professionalConclusion}</small>
+              </div>
+            `;
+          }
+
+          const quickAlertsContainer = document.getElementById('quickAlerts');
+          if (quickAlertsContainer) {
+            quickAlertsContainer.innerHTML = recommendations.map(rec => DecisionSupportEngine.renderRecommendationCard(rec)).join('');
+          }
+        }
 
         this.updateTopItems();
-        this.updateQuickAlerts();
+        this.updateQuickAlerts(summary.validation);
       },
 
       /**
@@ -2620,44 +4024,25 @@
       /**
        * Update quick alerts
        */
-      updateQuickAlerts() {
+      updateQuickAlerts(validation = null) {
         const container = document.getElementById('quickAlerts');
         const alerts = [];
 
-        const { debitCol, creditCol } = this.resolveFinancialColumns();
-        const unbalancedDetails = [];
-
-        if (debitCol && creditCol && debitCol !== creditCol) {
-          this.state.filteredRows.forEach((row, index) => {
-            const debit = Formatter.toNumber(row[debitCol]) || 0;
-            const credit = Formatter.toNumber(row[creditCol]) || 0;
-            const diff = Math.abs(debit - credit);
-
-            if (diff > 0.01) {
-              unbalancedDetails.push({
-                index: index + 1,
-                debit,
-                credit,
-                diff
-              });
-            }
-          });
+        if (!validation) {
+          const summary = this.calculateFinancialSummary();
+          validation = summary.validation;
         }
 
-        const unbalanced = unbalancedDetails.length;
+        const warnings = validation.warnings || [];
         
-        if (unbalanced > 0) {
-          const detailsHtml = unbalancedDetails.map(item =>
-            `<li>قيد #${item.index}: مدين ${Formatter.formatCurrency(item.debit)} | دائن ${Formatter.formatCurrency(item.credit)} | الفرق ${Formatter.formatCurrency(item.diff)}</li>`
-          ).join('');
-
+        warnings.forEach(w => {
           alerts.push({
-            type: 'danger',
-            icon: 'exclamation-triangle',
-            text: `يوجد ${Formatter.formatNumber(unbalanced)} قيد غير متوازن`,
-            details: `<ul class="alert-details-list mb-0">${detailsHtml}</ul>`
+            type: w.type,
+            icon: w.icon,
+            text: `<strong>${w.title}:</strong> ${w.message}`,
+            details: w.details ? `<div class="small text-muted mt-1">${w.details}</div>` : ''
           });
-        }
+        });
 
         if (this.state.filteredRows.length === 0) {
           alerts.push({
@@ -3070,17 +4455,65 @@
           try {
             const wb = XLSX.utils.book_new();
             
-            const ws = XLSX.utils.json_to_sheet(this.state.filteredRows);
-            XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
+            const summary = this.calculateFinancialSummary();
+            const { debitCol, creditCol, amountCol, categoryCol, dateCol } = this.resolveFinancialColumns();
+            const financialColumns = { debitCol, creditCol, amountCol, categoryCol, dateCol };
+            
+            const wsData = XLSX.utils.json_to_sheet(this.state.filteredRows);
+            XLSX.utils.book_append_sheet(wb, wsData, 'البيانات');
 
-            const summary = [
+            const validation = summary.validation;
+            const validationSummary = [
               { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
               { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length },
-              { المؤشر: 'عدد الأعمدة', القيمة: this.state.headers.length },
-              { المؤشر: 'اسم الملف', القيمة: this.state.fileName }
+              { المؤشر: 'إجمالي المدين', القيمة: Formatter.formatNumber(summary.totalDebit) },
+              { المؤشر: 'إجمالي الدائن', القيمة: Formatter.formatNumber(summary.totalCredit) },
+              { المؤشر: 'الفرق', القيمة: Formatter.formatNumber(Math.abs(summary.difference)) },
+              { المؤشر: 'القيود المتوازنة', القيمة: summary.balancedRows },
+              { المؤشر: 'القيود غير المتوازنة', القيمة: summary.unbalancedRows },
+              { المؤشر: 'نسبة التنفيذ', القيمة: summary.executionRate !== null ? Formatter.formatNumber(summary.executionRate) + '%' : 'غير متاحة' },
+              { المؤشر: 'يوجد موازنة', القيمة: summary.hasBudget ? 'نعم' : 'لا' }
             ];
-            const wsSummary = XLSX.utils.json_to_sheet(summary);
+            
+            if (validation.outlierCheck?.detected) {
+              validationSummary.push({ المؤشر: 'القيم الاستثنائية', القيمة: validation.outlierCheck.count });
+            }
+
+            const wsSummary = XLSX.utils.json_to_sheet(validationSummary);
             XLSX.utils.book_append_sheet(wb, wsSummary, 'الملخص');
+
+            if (validation.balanceCheck && validation.balanceCheck.length > 0) {
+              const unbalancedData = validation.balanceCheck.slice(0, 100).map(item => ({
+                'رقم الصف': item.rowIndex,
+                'المدين': item.debit,
+                'الدائن': item.credit,
+                'الفرق': item.difference.toFixed(2),
+                'الخطورة': item.severity
+              }));
+              const wsUnbalanced = XLSX.utils.json_to_sheet(unbalancedData);
+              XLSX.utils.book_append_sheet(wb, wsUnbalanced, 'قيود غير متوازنة');
+            }
+
+            if (validation.duplicateCheck && validation.duplicateCheck.length > 0) {
+              const duplicateData = validation.duplicateCheck.slice(0, 100).map(item => ({
+                'رقم الصف': item.rowIndex,
+                'الصف الأصلي': item.originalRow
+              }));
+              const wsDuplicates = XLSX.utils.json_to_sheet(duplicateData);
+              XLSX.utils.book_append_sheet(wb, wsDuplicates, 'سجلات مكررة');
+            }
+
+            const warnings = validation.warnings || [];
+            if (warnings.length > 0) {
+              const warningsData = warnings.map(w => ({
+                'النوع': w.type,
+                'العنوان': w.title,
+                'الرسالة': w.message,
+                'التفاصيل': w.details || ''
+              }));
+              const wsWarnings = XLSX.utils.json_to_sheet(warningsData);
+              XLSX.utils.book_append_sheet(wb, wsWarnings, 'التنبيهات');
+            }
 
             XLSX.writeFile(wb, `تقرير_مالي_${Date.now()}.xlsx`);
 
@@ -3090,6 +4523,7 @@
           } catch (e) {
             ErrorHandler.log(e);
             this.hideLoading();
+            this.showToast('حدث خطأ في تصدير Excel', 'danger');
           }
         }, 500);
       },
@@ -3263,6 +4697,8 @@
         const categoryColumn = categoryCol || this.state.headers[0];
         const valueColumn = amountCol || debitCol || this.state.numericColumns[0];
         const summary = this.calculateFinancialSummary();
+        
+        const validationWarnings = summary.validation?.warnings || [];
         const titles = {
           expenses_by_item: 'تقرير المصروفات حسب البند',
           expenses_by_dept: 'تقرير المصروفات حسب الجهة',
@@ -3304,7 +4740,7 @@
         } else if (reportType === 'unbalanced') {
           const validation = ValidationService.performAll(this.state.filteredRows, this.state.headers, { debit: debitCol, credit: creditCol });
           sheets = [{
-            name: 'قيود غير متوازنة',
+            name: 'القيود غير المتوازنة',
             rows: validation.unbalanced.map(item => ({
               'رقم القيد': item.index,
               'المدين': item.debit,
@@ -3313,44 +4749,108 @@
             }))
           }];
         } else if (reportType === 'budget_variance') {
+          const execRateDisplay = summary.executionRate !== null 
+            ? Formatter.formatNumber(summary.executionRate) + '%' 
+            : 'غير متاحة';
+          const budgetNote = summary.hasBudget ? '' : ' (لا تتوفر بيانات الموازنة)';
+          
           sheets = [{
             name: 'الموازنة والانحراف',
             rows: [{
-              'الموازنة المعتمدة': summary.approvedBudget,
-              'المنصرف الفعلي': summary.actualSpent,
-              'المتبقي': summary.remaining,
-              'الانحراف': summary.deviation,
-              'نسبة التنفيذ %': summary.executionRate
+              'البند': 'الموازنة المعتمدة',
+              'القيمة': summary.totalDebit
+            }, {
+              'البند': 'المنصرف الفعلي',
+              'القيمة': summary.totalCredit
+            }, {
+              'البند': 'الفرق',
+              'القيمة': Math.abs(summary.difference)
+            }, {
+              'البند': 'نسبة التنفيذ' + budgetNote,
+              'القيمة': execRateDisplay
             }]
           }];
         } else {
+          const execRateDisplay = summary.executionRate !== null 
+            ? Formatter.formatNumber(summary.executionRate) + '%' 
+            : 'غير متاحة';
+          
+          const qualityScore = DataQualityScorer.calculateScore(summary.validation || {}, this.state.filteredRows.length);
+          const validation = summary.validation || {};
+          
           sheets = [
-            { name: 'البيانات', rows: this.state.filteredRows },
-            { name: 'الملخص', rows: [
+            { name: 'البيانات الأصلية', rows: this.state.filteredRows },
+            { name: 'الملخص التنفيذي', rows: [
               { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
               { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length },
               { المؤشر: 'إجمالي المدين', القيمة: summary.totalDebit },
               { المؤشر: 'إجمالي الدائن', القيمة: summary.totalCredit },
-              { المؤشر: 'نسبة التنفيذ %', القيمة: summary.executionRate }
-            ]}
+              { المؤشر: 'الفرق', القيمة: Math.abs(summary.difference) },
+              { المؤشر: 'القيود غير المتوازنة', القيمة: summary.unbalancedRows },
+              { المؤشر: 'نسبة التنفيذ', القيمة: summary.executionRate !== null ? summary.executionRate + '%' : 'غير متاحة' }
+            ]},
+            { name: 'جودة البيانات', rows: [
+              { 'المؤشر': 'درجة الجودة', 'القيمة': qualityScore.score + ' (' + qualityScore.grade + ')' },
+              { 'المؤشر': 'الحالة', 'القيمة': qualityScore.status },
+              { 'المؤشر': 'السجلات غير المتوازنة', 'القيمة': validation.balanceCheck?.length || 0 },
+              { 'المؤشر': 'السجلات المكررة', 'القيمة': validation.duplicateCheck?.length || 0 },
+              { 'المؤشر': 'البيانات المفقودة', 'القيمة': validation.missingData?.total || 0 },
+              { 'المؤشر': 'القيم الشاذة', 'القيمة': validation.outlierCheck?.count || 0 }
+            ]},
+            { name: 'القيود غير المتوازنة', rows: (validation.balanceCheck || []).map(item => ({
+              'رقم الصف': item.index,
+              'المدين': item.debit,
+              'الدائن': item.credit,
+              'الفرق': item.diff
+            })) },
+            { name: 'السجلات المكررة', rows: (validation.duplicateCheck || []).map((item, idx) => ({
+              'مكرر': idx + 1,
+              'صف 1': item.row1,
+              'صف 2': item.row2,
+              'التطابق': item.matches?.join('، ') || '—'
+            })) },
+            { name: 'القيم الشاذة', rows: (validation.outlierCheck?.items || []).map(item => ({
+              'رقم الصف': item.index,
+              'العمود': item.column,
+              'القيمة': item.value,
+              'المتوقع': item.expected
+            })) },
+            { name: 'التوصيات', rows: DecisionSupportEngine.generateRecommendations(summary, validation, qualityScore, null).map(rec => ({
+              'الأولوية': rec.priority,
+              'النوع': rec.type,
+              'العنوان': rec.title,
+              'الرسالة': rec.message,
+              'الإجراء': rec.action
+            })) }
           ];
+        }
+
+        const kpiRows = [
+          { label: 'إجمالي السجلات', value: Formatter.formatNumber(this.state.originalRows.length) },
+          { label: 'السجلات المعروضة', value: Formatter.formatNumber(this.state.filteredRows.length) },
+          { label: 'إجمالي المدين', value: Formatter.formatCurrency(summary.totalDebit) },
+          { label: 'إجمالي الدائن', value: Formatter.formatCurrency(summary.totalCredit) },
+          { label: 'الفرق', value: Formatter.formatCurrency(Math.abs(summary.difference)) },
+          { label: 'القيود غير المتوازنة', value: Formatter.formatNumber(summary.unbalancedRows) }
+        ];
+        
+        if (summary.executionRate !== null) {
+          kpiRows.push({ label: 'نسبة التنفيذ', value: Formatter.formatNumber(summary.executionRate) + '%' });
+        } else {
+          kpiRows.push({ label: 'نسبة التنفيذ', value: 'غير متاحة' });
         }
 
         return {
           title: titles[reportType] || 'تقرير مالي',
           sheets,
           chartIds: chartMap[reportType] || [],
+          validation: validationWarnings,
           meta: {
             fileName: this.state.fileName || 'غير محدد',
             sheetName: this.state.currentSheet || 'الورقة الحالية',
             generatedAt: new Date().toLocaleString('ar-EG'),
-            summaryKpis: [
-              { label: 'إجمالي السجلات', value: Formatter.formatNumber(this.state.originalRows.length) },
-              { label: 'السجلات المعروضة', value: Formatter.formatNumber(this.state.filteredRows.length) },
-              { label: 'إجمالي المدين', value: Formatter.formatCurrency(summary.totalDebit) },
-              { label: 'إجمالي الدائن', value: Formatter.formatCurrency(summary.totalCredit) },
-              { label: 'نسبة التنفيذ %', value: Formatter.formatNumber(summary.executionRate) + '%' }
-            ]
+            summaryKpis: kpiRows,
+            totalRows: this.state.filteredRows.length
           }
         };
       },
@@ -3894,10 +5394,74 @@
         try {
           await this.prepareChartsForCapture(payload.chartIds);
           const headerKpis = payload.meta.summaryKpis || [];
+          const validationWarnings = payload.validation || [];
+          
+          let warningsHtml = '';
+          if (validationWarnings.length > 0) {
+            warningsHtml = `
+              <div class="pdf-section" style="margin-top: 12px;">
+                <h2>تنبيهات التحقق</h2>
+                ${validationWarnings.map(w => {
+                  const colorClass = w.type === 'danger' ? '#dc3545' : w.type === 'warning' ? '#ffc107' : w.type === 'info' ? '#0dcaf0' : '#198754';
+                  return `
+                    <div style="padding: 8px 12px; margin-bottom: 8px; border-radius: 6px; background: ${colorClass}15; border-left: 4px solid ${colorClass};">
+                      <strong style="color: ${colorClass};">${Formatter.escapeHtml(w.title)}</strong>
+                      <div style="font-size: 11px; margin-top: 4px;">${Formatter.escapeHtml(w.message)}</div>
+                      ${w.details ? `<div style="font-size: 10px; color: #666; margin-top: 4px;">${Formatter.escapeHtml(w.details)}</div>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
+          
           const headerPage = this.createPdfPageElement({
             title: payload.title,
-            subtitle: reportMeta,
+            subtitle: '',
             bodyHtml: `
+              <div class="pdf-cover" style="text-align: center; padding: 40px 0;">
+                <div style="font-size: 48px; margin-bottom: 20px; color: #2563eb;">
+                  <i class="bi bi-building"></i>
+                </div>
+                <h1 style="font-size: 28px; color: #1e3a8a; margin-bottom: 10px; font-weight: 700;">${Formatter.escapeHtml(payload.title)}</h1>
+                <p style="font-size: 14px; color: #64748b; margin-bottom: 30px;">نظام التحليل المالي الحكومي</p>
+                <div style="border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; padding: 20px 0; margin: 30px 0;">
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; text-align: right;">
+                    <div>
+                      <div style="font-size: 11px; color: #64748b;">اسم الملف</div>
+                      <div style="font-size: 13px; font-weight: 600;">${payload.meta.fileName || '—'}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: #64748b;">الورقة</div>
+                      <div style="font-size: 13px; font-weight: 600;">${payload.meta.sheetName || '—'}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: #64748b;">تاريخ الإنشاء</div>
+                      <div style="font-size: 13px; font-weight: 600;">${payload.meta.generatedAt || '—'}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: #64748b;">عدد السجلات</div>
+                      <div style="font-size: 13px; font-weight: 600;">${payload.meta.totalRows || '—'}</div>
+                    </div>
+                  </div>
+                </div>
+                <div style="background: #eff6ff; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                  <div style="font-size: 12px; color: #1e3a8a; margin-bottom: 10px; font-weight: 600;">حالة النظام</div>
+                  <div style="display: flex; justify-content: center; gap: 30px;">
+                    <div><span style="color: #198754;">●</span> جاهز</div>
+                    <div><span style="color: #198754;">●</span> البيانات متاحة</div>
+                    <div><span style="color: #198754;">●</span> التحقق مكتمل</div>
+                  </div>
+                </div>
+                <div style="margin-top: 30px; padding: 15px; background: #fef3c7; border-radius: 8px; border-right: 4px solid #f59e0b;">
+                  <div style="font-size: 11px; color: #92400e; font-weight: 600; margin-bottom: 8px;">
+                    <i class="bi bi-exclamation-triangle"></i> ملاحظة مهمة
+                  </div>
+                  <div style="font-size: 10px; color: #92400e;">
+                    هذا التقرير مُعد آلياً. يُنصح بمراجعة التحذيرات والتوصيات قبل اتخاذ أي قرارات مالية.
+                  </div>
+                </div>
+              </div>
               <div class="pdf-section">
                 <h2>الملخص التنفيذي</h2>
                 <div class="pdf-kpi-row">
@@ -3910,6 +5474,7 @@
                 </div>
                 <div class="pdf-note">تم إعداد هذا التقرير تلقائيًا بناءً على البيانات المتاحة.</div>
               </div>
+              ${warningsHtml}
             `
           });
           pdfSections.push(headerPage);
