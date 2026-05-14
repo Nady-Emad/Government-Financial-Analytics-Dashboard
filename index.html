@@ -130,6 +130,224 @@
       filter: brightness(0) invert(1);
     }
 
+    body.dark-mode .panel {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .panel-header {
+      background: var(--bg-tertiary);
+      border-bottom-color: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .chart-card {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .chart-header {
+      border-bottom-color: var(--border-color);
+    }
+
+    body.dark-mode .chart-header h6 {
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .kpi-card {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .kpi-label {
+      color: var(--text-secondary);
+    }
+
+    body.dark-mode .kpi-value {
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .nav-tabs {
+      border-bottom-color: var(--border-color);
+    }
+
+    body.dark-mode .nav-tabs .nav-link {
+      color: var(--text-secondary);
+    }
+
+    body.dark-mode .nav-tabs .nav-link:hover {
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .nav-tabs .nav-link.active {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+      border-bottom-color: var(--bg-secondary);
+    }
+
+    body.dark-mode .modal-content {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .modal-header {
+      border-bottom-color: var(--border-color);
+    }
+
+    body.dark-mode .modal-footer {
+      border-top-color: var(--border-color);
+    }
+
+    body.dark-mode .dropdown-menu {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .dropdown-item {
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .dropdown-item:hover,
+    body.dark-mode .dropdown-item:focus {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .page-link {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .page-item.active .page-link {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    body.dark-mode .page-item.disabled .page-link {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+
+    body.dark-mode .card {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .card-header {
+      background: var(--bg-tertiary);
+      border-bottom-color: var(--border-color);
+    }
+
+    body.dark-mode .btn-primary {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    body.dark-mode .btn-secondary {
+      background-color: #4a5578;
+      border-color: #4a5578;
+    }
+
+    body.dark-mode .btn-success {
+      background-color: var(--success);
+      border-color: var(--success);
+    }
+
+    body.dark-mode .btn-danger {
+      background-color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    body.dark-mode .btn-warning {
+      background-color: var(--warning);
+      border-color: var(--warning);
+      color: #000;
+    }
+
+    body.dark-mode .btn-info {
+      background-color: var(--info);
+      border-color: var(--info);
+      color: #000;
+    }
+
+    body.dark-mode .badge {
+      color: #fff;
+    }
+
+    body.dark-mode .progress {
+      background: var(--bg-tertiary);
+    }
+
+    body.dark-mode .insight-item {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .insights-list {
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .empty-state {
+      color: var(--text-muted);
+    }
+
+    body.dark-mode .pagination-wrapper {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .table-wrapper {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .data-info-bar {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+
+    body.dark-mode .header-cell {
+      background: var(--bg-tertiary);
+    }
+
+    body.dark-mode .toast {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .toast-header {
+      background: var(--bg-tertiary);
+      border-bottom-color: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .spinner-border {
+      color: var(--primary);
+    }
+
+    body.dark-mode ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    body.dark-mode ::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+    }
+
+    body.dark-mode ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    body.dark-mode ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -1562,6 +1780,13 @@
                   <input class="form-check-input" type="checkbox" id="autoValidate" checked>
                   <label class="form-check-label" for="autoValidate">
                     التحقق التلقائي عند رفع الملف
+                  </label>
+                </div>
+
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                  <label class="form-check-label" for="darkModeToggle">
+                    تفعيل الوضع الداكن
                   </label>
                 </div>
 
@@ -3231,7 +3456,17 @@
        */
       init() {
         try {
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light')) {
+            this.state.settings.theme = savedTheme;
+          }
+          
           stateManager.restore();
+          
+          if (!this.state.settings.theme) {
+            this.state.settings.theme = 'light';
+          }
+          
           this.applyTheme(this.state.settings.theme);
           this.setupEventListeners();
           this.addAuditLog('تسجيل دخول', 'تم فتح النظام');
@@ -3404,6 +3639,11 @@
           this.state.settings.userName = document.getElementById('userName').value;
           this.state.settings.userRole = document.getElementById('userRole').value;
           this.state.settings.autoValidate = document.getElementById('autoValidate').checked;
+          
+          const darkModeChecked = document.getElementById('darkModeToggle').checked;
+          if (this.state.settings.theme !== (darkModeChecked ? 'dark' : 'light')) {
+            this.applyTheme(darkModeChecked ? 'dark' : 'light');
+          }
           
           document.getElementById('currentUser').textContent = this.state.settings.userName;
           
@@ -4147,10 +4387,17 @@
         return {
           text: isDark ? '#e8eaf0' : '#212529',
           grid: isDark ? '#2a3556' : '#dee2e6',
+          background: isDark ? '#111936' : '#ffffff',
           colors: [
             '#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0',
             '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2'
-          ]
+          ],
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(26, 33, 66, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: isDark ? '#e8eaf0' : '#212529',
+            bodyColor: isDark ? '#a0a8c0' : '#6c757d',
+            borderColor: isDark ? '#2a3556' : '#dee2e6'
+          }
         };
       },
 
@@ -4205,6 +4452,17 @@
             plugins: {
               legend: {
                 labels: { color: colors.text }
+              },
+              tooltip: {
+                backgroundColor: colors.tooltip.backgroundColor,
+                titleColor: colors.tooltip.titleColor,
+                bodyColor: colors.tooltip.bodyColor,
+                borderColor: colors.tooltip.borderColor,
+                borderWidth: 1,
+                padding: 12,
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 },
+                cornerRadius: 8
               }
             },
             scales: {
@@ -4253,7 +4511,7 @@
               data: sorted.map(([, val]) => val),
               backgroundColor: colors.colors,
               borderWidth: 2,
-              borderColor: this.state.settings.theme === 'dark' ? '#111936' : '#ffffff'
+              borderColor: colors.background
             }]
           },
           options: {
@@ -4263,6 +4521,17 @@
               legend: {
                 position: 'bottom',
                 labels: { color: colors.text }
+              },
+              tooltip: {
+                backgroundColor: colors.tooltip.backgroundColor,
+                titleColor: colors.tooltip.titleColor,
+                bodyColor: colors.tooltip.bodyColor,
+                borderColor: colors.tooltip.borderColor,
+                borderWidth: 1,
+                padding: 12,
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 },
+                cornerRadius: 8
               }
             }
           }
@@ -4292,7 +4561,18 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { labels: { color: colors.text } }
+              legend: { labels: { color: colors.text } },
+              tooltip: {
+                backgroundColor: colors.tooltip.backgroundColor,
+                titleColor: colors.tooltip.titleColor,
+                bodyColor: colors.tooltip.bodyColor,
+                borderColor: colors.tooltip.borderColor,
+                borderWidth: 1,
+                padding: 12,
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 },
+                cornerRadius: 8
+              }
             },
             scales: {
               x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
@@ -4361,7 +4641,18 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { labels: { color: colors.text } }
+              legend: { labels: { color: colors.text } },
+              tooltip: {
+                backgroundColor: colors.tooltip.backgroundColor,
+                titleColor: colors.tooltip.titleColor,
+                bodyColor: colors.tooltip.bodyColor,
+                borderColor: colors.tooltip.borderColor,
+                borderWidth: 1,
+                padding: 12,
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 },
+                cornerRadius: 8
+              }
             },
             scales: {
               x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
@@ -5610,22 +5901,82 @@
        */
       applyTheme(theme) {
         this.state.settings.theme = theme;
-        document.body.classList.toggle('dark-mode', theme === 'dark');
+        
+        const isDark = theme === 'dark';
+        
+        document.body.classList.toggle('dark-mode', isDark);
+        
+        document.documentElement.setAttribute('data-theme', theme);
         
         const btn = document.getElementById('themeToggleText');
         const icon = document.querySelector('#themeToggleBtn i');
         
-        if (theme === 'dark') {
-          btn.textContent = 'الوضع الفاتح';
-          icon.className = 'bi bi-sun';
-        } else {
-          btn.textContent = 'الوضع الداكن';
-          icon.className = 'bi bi-moon-stars';
+        if (btn && icon) {
+          if (isDark) {
+            btn.textContent = 'الوضع الفاتح';
+            icon.className = 'bi bi-sun';
+          } else {
+            btn.textContent = 'الوضع الداكن';
+            icon.className = 'bi bi-moon-stars';
+          }
+        }
+        
+        const darkModeCheckbox = document.getElementById('darkModeToggle');
+        if (darkModeCheckbox) {
+          darkModeCheckbox.checked = isDark;
+        }
+        
+        try {
+          localStorage.setItem('theme', theme);
+        } catch (e) {
+          console.warn('Cannot save theme to localStorage:', e);
         }
         
         stateManager.persist();
+        
         ChartManager.destroyAll();
+        
+        this.updateChartTheme();
+        
         this.renderAllCharts();
+        
+        this.updateTableStyles();
+      },
+
+      updateChartTheme() {
+        const isDark = this.state.settings.theme === 'dark';
+        
+        Chart.defaults.color = isDark ? '#e8eaf0' : '#212529';
+        Chart.defaults.borderColor = isDark ? '#2a3556' : '#dee2e6';
+        
+        if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
+          Chart.defaults.plugins.legend.labels.color = isDark ? '#e8eaf0' : '#212529';
+        }
+        
+        if (Chart.defaults.plugins && Chart.defaults.plugins.tooltip) {
+          Chart.defaults.plugins.tooltip.backgroundColor = isDark ? '#1a2142' : '#ffffff';
+          Chart.defaults.plugins.tooltip.titleColor = isDark ? '#e8eaf0' : '#212529';
+          Chart.defaults.plugins.tooltip.bodyColor = isDark ? '#a0a8c0' : '#6c757d';
+          Chart.defaults.plugins.tooltip.borderColor = isDark ? '#2a3556' : '#dee2e6';
+        }
+      },
+
+      updateTableStyles() {
+        const isDark = this.state.settings.theme === 'dark';
+        
+        document.querySelectorAll('.table').forEach(table => {
+          if (isDark) {
+            table.style.setProperty('--bs-table-bg', '#111936');
+            table.style.setProperty('--bs-table-color', '#e8eaf0');
+            table.style.setProperty('--bs-table-striped-bg', '#162041');
+            table.style.setProperty('--bs-table-hover-bg', '#202b50');
+          } else {
+            table.style.setProperty('--bs-table-bg', '#ffffff');
+            table.style.setProperty('--bs-table-color', '#212529');
+            table.style.setProperty('--bs-table-striped-bg', '#f8f9fa');
+            table.style.setProperty('--bs-table-hover-bg', '#e9ecef');
+          }
+        });
       },
 
       /**
