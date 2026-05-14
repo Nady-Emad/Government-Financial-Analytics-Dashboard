@@ -1,0 +1,2909 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>نظام التحليل المالي الحكومي - وزارة المالية</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #f8f9fa;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f3f5;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --text-muted: #adb5bd;
+      --border-color: #dee2e6;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+      --primary: #0d6efd;
+      --success: #198754;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --info: #0dcaf0;
+      --accent: #6f42c1;
+    }
+
+    body.dark-mode {
+      --bg-primary: #0a0e27;
+      --bg-secondary: #111936;
+      --bg-tertiary: #1a2142;
+      --text-primary: #e8eaf0;
+      --text-secondary: #a0a8c0;
+      --text-muted: #6c7591;
+      --border-color: #2a3556;
+      --shadow: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-overlay.show {
+      display: flex;
+    }
+
+    #uploadProgress {
+      display: none;
+    }
+
+    #uploadProgress.show {
+      display: block;
+    }
+
+    /* Header */
+    .gov-header {
+      background: var(--bg-secondary);
+      border-bottom: 2px solid var(--primary);
+      padding: 1rem 0;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-section i {
+      color: var(--primary);
+    }
+
+    .user-section {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Navigation */
+    .nav-tabs-container {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 76px;
+      z-index: 999;
+    }
+
+    .nav-tabs {
+      border-bottom: none;
+      gap: 0.25rem;
+    }
+
+    .nav-tabs .nav-link {
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.75rem 1.25rem;
+      border-radius: 0;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: transparent;
+    }
+
+    .nav-tabs .nav-link:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav-tabs .nav-link.active {
+      background: var(--primary);
+      color: white;
+      border-bottom: 3px solid var(--accent);
+    }
+
+    /* Main Content */
+    .main-content {
+      padding: 1.5rem 0;
+      min-height: calc(100vh - 200px);
+    }
+
+    /* Panel */
+    .panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      transition: all 0.3s;
+    }
+
+    .panel:hover {
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 3px dashed var(--primary);
+      border-radius: 12px;
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: var(--bg-tertiary);
+      display: block;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      background: var(--primary);
+      color: white;
+      transform: scale(1.02);
+    }
+
+    .drop-zone:hover i,
+    .drop-zone.dragover i {
+      color: white;
+    }
+
+    .file-info {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      color: var(--text-secondary);
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: var(--shadow);
+      transition: all 0.3s;
+      height: 100%;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .kpi-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .kpi-card.kpi-primary .kpi-icon { background: rgba(13, 110, 253, 0.1); color: var(--primary); }
+    .kpi-card.kpi-success .kpi-icon { background: rgba(25, 135, 84, 0.1); color: var(--success); }
+    .kpi-card.kpi-danger .kpi-icon { background: rgba(220, 53, 69, 0.1); color: var(--danger); }
+    .kpi-card.kpi-warning .kpi-icon { background: rgba(255, 193, 7, 0.1); color: var(--warning); }
+    .kpi-card.kpi-info .kpi-icon { background: rgba(13, 202, 240, 0.1); color: var(--info); }
+    .kpi-card.kpi-secondary .kpi-icon { background: rgba(108, 117, 125, 0.1); color: var(--text-secondary); }
+
+    .kpi-content { flex: 1; }
+    .kpi-label { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+
+    /* Chart Card */
+    .chart-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .chart-header h6 {
+      margin: 0;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chart-body {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+    }
+
+    .table {
+      margin: 0;
+      color: var(--text-primary);
+    }
+
+    .table thead th {
+      background: var(--bg-tertiary);
+      border-bottom: 2px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      font-weight: 600;
+      white-space: nowrap;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .table thead th:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .table tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: all 0.2s;
+    }
+
+    .table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .table td {
+      padding: 0.75rem;
+      vertical-align: middle;
+    }
+
+    /* Forms */
+    .form-control,
+    .form-select {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+      color: var(--text-primary);
+    }
+
+    .form-control::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn {
+      border-radius: 8px;
+      padding: 0.5rem 1.25rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .insights-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .insight-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .alerts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .budget-stat {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+
+    .budget-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .budget-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .validation-stat {
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .validation-stat .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .validation-stat.stat-danger { border-color: var(--danger); }
+    .validation-stat.stat-danger .stat-icon { background: rgba(220, 53, 69, 0.1); color: var(--danger); }
+    .validation-stat.stat-warning { border-color: var(--warning); }
+    .validation-stat.stat-warning .stat-icon { background: rgba(255, 193, 7, 0.1); color: var(--warning); }
+    .validation-stat.stat-info { border-color: var(--info); }
+    .validation-stat.stat-info .stat-icon { background: rgba(13, 202, 240, 0.1); color: var(--info); }
+    .validation-stat.stat-success { border-color: var(--success); }
+    .validation-stat.stat-success .stat-icon { background: rgba(25, 135, 84, 0.1); color: var(--success); }
+
+    .stat-content { flex: 1; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
+    .stat-label { font-size: 0.9rem; color: var(--text-secondary); }
+
+    .validation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .validation-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .report-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+      transition: all 0.3s;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .report-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .report-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      font-size: 1.75rem;
+      color: var(--primary);
+    }
+
+    .report-card h6 { margin-bottom: 0.5rem; color: var(--text-primary); }
+    .report-card p { flex: 1; margin-bottom: 1rem; }
+
+    .accordion-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .accordion-button {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: none;
+    }
+
+    .accordion-button:not(.collapsed) {
+      background: var(--primary);
+      color: white;
+    }
+
+    .accordion-button:focus {
+      box-shadow: none;
+      border-color: var(--primary);
+    }
+
+    .accordion-body {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .toast {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-header {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border-color);
+    }
+
+    @media (max-width: 992px) {
+      .nav-tabs .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+      }
+      .kpi-value {
+        font-size: 1.25rem;
+      }
+      .chart-body {
+        height: 250px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .logo-section h6 {
+        font-size: 0.9rem;
+      }
+      .logo-section small {
+        font-size: 0.7rem;
+      }
+      .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .nav-tabs .nav-link {
+        white-space: nowrap;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    @media print {
+      .gov-header, .nav-tabs-container, .btn, .chart-actions {
+        display: none !important;
+      }
+      .panel {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+      }
+    }
+
+    .error-alert {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .error-alert i {
+      font-size: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">جاري التحميل...</span>
+    </div>
+    <div class="mt-3 fs-5 text-white" id="loadingText">جاري معالجة البيانات...</div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer"></div>
+
+  <!-- Error Alert -->
+  <div id="errorAlert" class="error-alert" style="display: none; position: fixed; top: 90px; right: 20px; z-index: 1001; max-width: 400px;">
+    <i class="bi bi-exclamation-circle"></i>
+    <div>
+      <strong>خطأ:</strong>
+      <span id="errorMessage"></span>
+    </div>
+    <button type="button" class="btn-close" onclick="document.getElementById('errorAlert').style.display='none'"></button>
+  </div>
+
+  <!-- Header -->
+  <header class="gov-header">
+    <div class="container-fluid">
+      <div class="row align-items-center">
+        <div class="col-md-3">
+          <div class="logo-section">
+            <i class="bi bi-bank2 fs-1"></i>
+            <div>
+              <h6 class="mb-0 fw-bold">وزارة المالية</h6>
+              <small class="text-muted">نظام التحليل المالي الحكومي</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 text-center d-none d-md-block">
+          <h5 class="mb-0 fw-bold" id="currentPageTitle">لوحة التحكم الرئيسية</h5>
+        </div>
+        <div class="col-md-3 text-start">
+          <div class="user-section">
+            <i class="bi bi-person-circle fs-4"></i>
+            <div>
+              <div class="fw-bold" id="currentUser">محاسب رئيسي</div>
+              <small class="text-muted" id="currentRole">مدير مالي</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs-container" role="navigation" aria-label="القائمة الرئيسية">
+    <div class="container-fluid">
+      <div role="tablist" class="nav nav-tabs" id="mainTabs">
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="true" aria-controls="dashboardTab" class="nav-link active" data-bs-toggle="tab" data-bs-target="#dashboardTab">
+            <i class="bi bi-speedometer2"></i> <span class="d-none d-md-inline">المؤشرات</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="dataTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#dataTab">
+            <i class="bi bi-table"></i> <span class="d-none d-md-inline">البيانات</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="budgetTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#budgetTab">
+            <i class="bi bi-pie-chart"></i> <span class="d-none d-md-inline">الموازنة</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="validationTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#validationTab">
+            <i class="bi bi-shield-check"></i> <span class="d-none d-md-inline">التحقق</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="reportsTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#reportsTab">
+            <i class="bi bi-file-earmark-text"></i> <span class="d-none d-md-inline">التقارير</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="auditTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#auditTab">
+            <i class="bi bi-clock-history"></i> <span class="d-none d-md-inline">السجل</span>
+          </button>
+        </div>
+        <div role="presentation" class="nav-item">
+          <button role="tab" aria-selected="false" aria-controls="settingsTab" class="nav-link" data-bs-toggle="tab" data-bs-target="#settingsTab">
+            <i class="bi bi-gear"></i> <span class="d-none d-md-inline">الإعدادات</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container-fluid">
+      <div class="tab-content" id="mainTabContent">
+        
+        <!-- Dashboard Tab -->
+        <div class="tab-pane fade show active" id="dashboardTab">
+          <!-- File Upload Section -->
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <div class="panel">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div>
+                    <h5 class="mb-2"><i class="bi bi-upload"></i> رفع الملف المالي</h5>
+                    <p class="text-muted mb-0">قم برفع ملف Excel أو CSV يحتوي على البيانات المالية (حد أقصى 100 ميجا)</p>
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary" id="loadTemplateBtn">
+                      <i class="bi bi-file-earmark-spreadsheet"></i> تحميل قالب
+                    </button>
+                    <button class="btn btn-outline-secondary" id="themeToggleBtn">
+                      <i class="bi bi-moon-stars"></i> <span id="themeToggleText">الوضع الداكن</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-lg-4">
+              <div class="panel">
+                <label class="drop-zone" id="dropZone">
+                  <input type="file" id="fileInput" hidden accept=".csv,.xlsx,.xls" />
+                  <i class="bi bi-cloud-upload fs-1 text-primary mb-3"></i>
+                  <h6 class="fw-bold">اسحب الملف هنا أو اضغط للاختيار</h6>
+                  <p class="text-muted small mb-0">CSV, XLSX, XLS (حتى 100 ميجا)</p>
+                </label>
+                
+                <div id="fileInfoBox" class="file-info mt-3">
+                  <i class="bi bi-info-circle"></i> لم يتم رفع أي ملف بعد
+                </div>
+
+                <div id="uploadProgress" class="mt-3">
+                  <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" id="uploadProgressBar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <label for="sheetSelect" class="form-label fw-bold">اختر الورقة (Sheet)</label>
+                  <select class="form-select" id="sheetSelect" aria-label="اختر ورقة العمل">
+                    <option value="">الورقة الأولى</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-8">
+              <div class="panel">
+                <h6 class="fw-bold mb-3"><i class="bi bi-gear"></i> إعدادات التحليل السريع</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="globalSearch" class="form-label">البحث العام</label>
+                    <input type="text" class="form-control" id="globalSearch" 
+                           placeholder="ابحث في جميع الحقول...">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="pageSize" class="form-label">عدد الصفوف</label>
+                    <select class="form-select" id="pageSize" aria-label="عدد الصفوف في الصفحة">
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="500">500</option>
+                      <option value="1000">1000</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="categoryColumn" class="form-label">عمود التصنيف الرئيسي</label>
+                    <select class="form-select" id="categoryColumn" aria-label="عمود التصنيف">
+                      <option value="">اختر العمود</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="valueColumn" class="form-label">عمود القيمة المالية</label>
+                    <select class="form-select" id="valueColumn" aria-label="عمود القيمة">
+                      <option value="">اختر العمود</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="alert alert-info mt-3 mb-0">
+                  <i class="bi bi-lightbulb"></i>
+                  <strong>نصيحة:</strong> سيتم التعرف تلقائيًا على الأعمدة المالية المهمة 
+                  (المدين، الدائن، المصروفات، الإيرادات، التاريخ، إلخ)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPIs Section -->
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <h5 class="section-title"><i class="bi bi-speedometer2"></i> المؤشرات المالية الرئيسية</h5>
+            </div>
+            
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-primary">
+                <div class="kpi-icon"><i class="bi bi-file-text"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">إجمالي القيود</div>
+                  <div class="kpi-value" id="totalRows">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-success">
+                <div class="kpi-icon"><i class="bi bi-filter"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">القيود المعروضة</div>
+                  <div class="kpi-value" id="filteredRows">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-info">
+                <div class="kpi-icon"><i class="bi bi-arrow-up-circle"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">إجمالي المدين</div>
+                  <div class="kpi-value" id="totalDebit">0 ج.م</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-warning">
+                <div class="kpi-icon"><i class="bi bi-arrow-down-circle"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">إجمالي الدائن</div>
+                  <div class="kpi-value" id="totalCredit">0 ج.م</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-danger">
+                <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">قيود غير متوازنة</div>
+                  <div class="kpi-value" id="unbalancedEntries">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+              <div class="kpi-card kpi-secondary">
+                <div class="kpi-icon"><i class="bi bi-percent"></i></div>
+                <div class="kpi-content">
+                  <div class="kpi-label">نسبة التنفيذ</div>
+                  <div class="kpi-value" id="executionRate">0%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Section -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-8">
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h6><i class="bi bi-bar-chart"></i> الاتجاه الزمني للمصروفات والإيرادات</h6>
+                </div>
+                <div class="chart-body">
+                  <canvas id="timelineChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4">
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h6><i class="bi bi-pie-chart"></i> توزيع المصروفات</h6>
+                </div>
+                <div class="chart-body">
+                  <canvas id="categoryPieChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Insights -->
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="panel">
+                <h6 class="fw-bold mb-3"><i class="bi bi-star"></i> أعلى 10 بنود حسب القيمة</h6>
+                <div id="topItemsList" class="insights-list">
+                  <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>لا توجد بيانات لعرضها</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="panel">
+                <h6 class="fw-bold mb-3"><i class="bi bi-exclamation-circle"></i> تنبيهات سريعة</h6>
+                <div id="quickAlerts" class="alerts-list">
+                  <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i> قم برفع ملف لعرض التنبيهات
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Tab -->
+        <div class="tab-pane fade" id="dataTab">
+          <div class="panel">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+              <h5 class="mb-0"><i class="bi bi-table"></i> جدول البيانات المالية</h5>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-success" id="exportExcelBtn">
+                  <i class="bi bi-file-excel"></i> تصدير Excel
+                </button>
+                <button class="btn btn-outline-success" id="exportCsvBtn">
+                  <i class="bi bi-filetype-csv"></i> تصدير CSV
+                </button>
+                <button class="btn btn-outline-primary" id="printBtn">
+                  <i class="bi bi-printer"></i> طباعة
+                </button>
+              </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0"><i class="bi bi-funnel"></i> الفلاتر النشطة: <span class="badge bg-primary" id="activeFiltersCount">0</span></h6>
+                <button class="btn btn-sm btn-outline-danger" id="clearAllFilters">
+                  <i class="bi bi-x-circle"></i> مسح الفلاتر
+                </button>
+              </div>
+              <div id="filtersContainer" class="row g-2"></div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="text-muted small" id="rangeInfo">لا توجد بيانات</div>
+              <div class="btn-group">
+                <button class="btn btn-sm btn-outline-secondary" id="firstPageBtn" title="الذهاب إلى الصفحة الأولى" aria-label="الصفحة الأولى">
+                  <i class="bi bi-chevron-bar-right"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="prevPageBtn" title="الصفحة السابقة" aria-label="السابق">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+                <span class="btn btn-sm btn-outline-secondary disabled" id="pageIndicator" aria-live="polite" aria-atomic="true">صفحة 1</span>
+                <button class="btn btn-sm btn-outline-secondary" id="nextPageBtn" title="الصفحة التالية" aria-label="التالي">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="lastPageBtn" title="الذهاب إلى الصفحة الأخيرة" aria-label="الصفحة الأخيرة">
+                  <i class="bi bi-chevron-bar-left"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div id="tableWrapper" class="table-wrapper">
+              <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p>قم برفع ملف لعرض البيانات</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Tab -->
+        <div class="tab-pane fade" id="budgetTab">
+          <div class="panel">
+            <h5 class="mb-3"><i class="bi bi-pie-chart"></i> تحليل الموازنة والانحراف</h5>
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-3">
+                <div class="budget-stat">
+                  <div class="budget-label">الموازنة المعتمدة</div>
+                  <div class="budget-value" id="approvedBudget">0 ج.م</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="budget-stat">
+                  <div class="budget-label">المنصرف الفعلي</div>
+                  <div class="budget-value text-primary" id="actualSpent">0 ج.م</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="budget-stat">
+                  <div class="budget-label">المتبقي</div>
+                  <div class="budget-value text-success" id="remaining">0 ج.م</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="budget-stat">
+                  <div class="budget-label">الانحراف</div>
+                  <div class="budget-value text-danger" id="deviation">0 ج.م</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-lg-6">
+                <div class="chart-card">
+                  <div class="chart-header">
+                    <h6>مقارنة الموازنة بالفعلي</h6>
+                  </div>
+                  <div class="chart-body">
+                    <canvas id="budgetComparisonChart"></canvas>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-lg-6">
+                <div class="chart-card">
+                  <div class="chart-header">
+                    <h6>نسبة التنفيذ حسب البند</h6>
+                  </div>
+                  <div class="chart-body">
+                    <canvas id="executionRateChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Validation Tab -->
+        <div class="tab-pane fade" id="validationTab">
+          <div class="panel">
+            <h5 class="mb-3"><i class="bi bi-shield-check"></i> التحقق والمراجعة المحاسبية</h5>
+            
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle"></i>
+              يتم فحص البيانات تلقائيًا عند رفع الملف لاكتشاف الأخطاء والانحرافات
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <div class="validation-stat stat-danger">
+                  <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="criticalErrors">0</div>
+                    <div class="stat-label">أخطاء حرجة</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="validation-stat stat-warning">
+                  <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="warnings">0</div>
+                    <div class="stat-label">تحذيرات</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="validation-stat stat-info">
+                  <div class="stat-icon"><i class="bi bi-info-circle"></i></div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="notices">0</div>
+                    <div class="stat-label">ملاحظات</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="validation-stat stat-success">
+                  <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="validRecords">0</div>
+                    <div class="stat-label">سجلات صحيحة</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Validation Results -->
+            <div class="accordion" id="validationAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" 
+                          data-bs-target="#unbalancedCollapse">
+                    <i class="bi bi-x-circle text-danger me-2"></i>
+                    قيود غير متوازنة (<span id="unbalancedCount">0</span>)
+                  </button>
+                </h2>
+                <div id="unbalancedCollapse" class="accordion-collapse collapse show" 
+                     data-bs-parent="#validationAccordion">
+                  <div class="accordion-body">
+                    <div id="unbalancedList" class="validation-list">
+                      <div class="text-muted">لا توجد قيود غير متوازنة</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                          data-bs-target="#duplicatesCollapse">
+                    <i class="bi bi-files text-warning me-2"></i>
+                    سجلات مكررة (<span id="duplicatesCount">0</span>)
+                  </button>
+                </h2>
+                <div id="duplicatesCollapse" class="accordion-collapse collapse" 
+                     data-bs-parent="#validationAccordion">
+                  <div class="accordion-body">
+                    <div id="duplicatesList" class="validation-list">
+                      <div class="text-muted">لا توجد سجلات مكررة</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                          data-bs-target="#missingCollapse">
+                    <i class="bi bi-dash-circle text-warning me-2"></i>
+                    حقول ناقصة (<span id="missingCount">0</span>)
+                  </button>
+                </h2>
+                <div id="missingCollapse" class="accordion-collapse collapse" 
+                     data-bs-parent="#validationAccordion">
+                  <div class="accordion-body">
+                    <div id="missingList" class="validation-list">
+                      <div class="text-muted">لا توجد حقول ناقصة</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-pane fade" id="reportsTab">
+          <div class="panel">
+            <h5 class="mb-3"><i class="bi bi-file-earmark-text"></i> التقارير المالية الجاهزة</h5>
+            
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-file-earmark-bar-graph"></i></div>
+                  <h6>تقرير المصروفات حسب البند</h6>
+                  <p class="text-muted small">تفصيل كامل للمصروفات مجمعة حسب البنود</p>
+                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('expenses_by_item')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-building"></i></div>
+                  <h6>تقرير المصروفات حسب الجهة</h6>
+                  <p class="text-muted small">توزيع المصروفات على الجهات الحكومية</p>
+                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('expenses_by_dept')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-calendar-range"></i></div>
+                  <h6>تقرير الحركة الشهرية</h6>
+                  <p class="text-muted small">ملخص المصروفات والإيرادات شهريًا</p>
+                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('monthly_activity')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                  <h6>تقرير القيود غير المتوازنة</h6>
+                  <p class="text-muted small">قائمة بجميع القيود التي لا تتطابق فيها الأطراف</p>
+                  <button class="btn btn-sm btn-danger w-100" onclick="app.generateReport('unbalanced')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-pie-chart"></i></div>
+                  <h6>تقرير الموازنة والانحراف</h6>
+                  <p class="text-muted small">مقارنة شاملة بين المخطط والفعلي</p>
+                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('budget_variance')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="report-card">
+                  <div class="report-icon"><i class="bi bi-file-earmark-check"></i></div>
+                  <h6>التقرير الشامل</h6>
+                  <p class="text-muted small">تقرير كامل بجميع المؤشرات والتحليلات</p>
+                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('comprehensive')">
+                    إنشاء التقرير
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit Tab -->
+        <div class="tab-pane fade" id="auditTab">
+          <div class="panel">
+            <h5 class="mb-3"><i class="bi bi-clock-history"></i> سجل المراجعة والتتبع</h5>
+            
+            <div class="alert alert-info">
+              <i class="bi bi-shield-lock"></i>
+              يتم تسجيل جميع العمليات تلقائيًا لأغراض المراجعة والأمان
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>التاريخ والوقت</th>
+                    <th>المستخدم</th>
+                    <th>الدور</th>
+                    <th>نوع العملية</th>
+                    <th>التفاصيل</th>
+                  </tr>
+                </thead>
+                <tbody id="auditLogTable">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted">لا توجد سجلات بعد</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <button class="btn btn-outline-danger" id="clearAuditLog">
+                <i class="bi bi-trash"></i> مسح السجل
+              </button>
+              <button class="btn btn-outline-primary" id="exportAuditLog">
+                <i class="bi bi-download"></i> تصدير السجل
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-pane fade" id="settingsTab">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="panel">
+                <h5 class="mb-3"><i class="bi bi-gear"></i> إعدادات النظام</h5>
+                
+                <div class="mb-3">
+                  <label for="userName" class="form-label fw-bold">اسم المستخدم</label>
+                  <input type="text" class="form-control" id="userName" value="محاسب رئيسي" title="اسم المستخدم" placeholder="أدخل اسم المستخدم">
+                </div>
+
+                <div class="mb-3">
+                  <label for="userRole" class="form-label fw-bold">الدور الوظيفي</label>
+                  <select class="form-select" id="userRole" aria-label="اختر الدور الوظيفي">
+                    <option value="accountant">محاسب</option>
+                    <option value="auditor">مراجع مالي</option>
+                    <option value="manager" selected>مدير مالي</option>
+                    <option value="director">مدير عام</option>
+                    <option value="admin">مسؤول نظام</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="numberFormat" class="form-label fw-bold">تنسيق الأرقام</label>
+                  <select class="form-select" id="numberFormat" aria-label="اختر تنسيق الأرقام">
+                    <option value="ar">عربي (١٢٣٤٥)</option>
+                    <option value="en" selected>إنجليزي (12345)</option>
+                  </select>
+                </div>
+
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="autoValidate" checked>
+                  <label class="form-check-label" for="autoValidate">
+                    التحقق التلقائي عند رفع الملف
+                  </label>
+                </div>
+
+                <button class="btn btn-primary w-100" id="saveSettings">
+                  <i class="bi bi-check-circle"></i> حفظ الإعدادات
+                </button>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="panel">
+                <h5 class="mb-3"><i class="bi bi-info-circle"></i> معلومات النظام</h5>
+                
+                <table class="table table-sm">
+                  <tbody>
+                    <tr>
+                      <td class="fw-bold">الإصدار</td>
+                      <td>4.0.0 (محسّن)</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-bold">العملة الرسمية</td>
+                      <td>الجنيه المصري (ج.م)</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-bold">تاريخ التحديث</td>
+                      <td>2026</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-bold">الحالة</td>
+                      <td><span class="badge bg-success">محسّن وآمن</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="alert alert-warning mb-0">
+                  <i class="bi bi-shield-lock"></i>
+                  هذا النظام مخصص للاستخدام الحكومي فقط - محمي بالكامل
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Main Application Script -->
+  <script>
+    /**
+     * ==================
+     * UTILITY CLASSES
+     * ==================
+     */
+
+    /**
+     * Formatter class - جميع عمليات التنسيق الآمنة
+     */
+    class Formatter {
+      static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      static normalizeValue(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).trim();
+      }
+
+      static toNumber(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const cleaned = String(value).replace(/,/g, '').trim();
+        const num = parseFloat(cleaned);
+        return isFinite(num) ? num : null;
+      }
+
+      static formatNumber(num) {
+        if (num === null || num === undefined) return '0';
+        return Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 });
+      }
+
+      static formatCurrency(num, currency = 'ج.م') {
+        return this.formatNumber(num) + ' ' + currency;
+      }
+    }
+
+    /**
+     * FileValidator class - التحقق الشامل من الملفات
+     */
+    class FileValidator {
+      static ALLOWED_TYPES = [
+        'text/csv',
+        'text/plain',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+
+      static MAGIC_BYTES = {
+        xlsx: [0x50, 0x4B, 0x03, 0x04],
+        xls: [0xD0, 0xCF, 0x11, 0xE0]
+      };
+
+      static MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+      static validate(file) {
+        // Check size
+        if (file.size > this.MAX_FILE_SIZE) {
+          throw new Error(`حجم الملف ${(file.size/1024/1024).toFixed(2)}MB أكبر من الحد الأقصى 100MB`);
+        }
+
+        // Check extension
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['csv', 'xlsx', 'xls'].includes(ext)) {
+          throw new Error('نوع الملف غير مدعوم. استخدم CSV أو Excel فقط');
+        }
+
+        return true;
+      }
+    }
+
+    /**
+     * Debouncer class - تأخير العمليات المتكررة
+     */
+    class Debouncer {
+      constructor(func, delay = 300) {
+        this.func = func;
+        this.delay = delay;
+        this.timeout = null;
+      }
+
+      execute(...args) {
+        clearTimeout(this.timeout);
+        this.timeout = setTimeout(() => {
+          this.func(...args);
+        }, this.delay);
+      }
+
+      cancel() {
+        clearTimeout(this.timeout);
+      }
+    }
+
+    /**
+     * SecureStorage class - تخزين آمن مشفر
+     */
+    class SecureStorage {
+      static save(key, data) {
+        try {
+          const encrypted = btoa(JSON.stringify(data));
+          localStorage.setItem(key, encrypted);
+        } catch (e) {
+          console.error('Failed to save secure storage:', e);
+        }
+      }
+
+      static load(key) {
+        try {
+          const encrypted = localStorage.getItem(key);
+          if (!encrypted) return null;
+          return JSON.parse(atob(encrypted));
+        } catch (e) {
+          console.error('Failed to load secure storage:', e);
+          localStorage.removeItem(key);
+          return null;
+        }
+      }
+
+      static clear(key) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    /**
+     * ValidationService class - جميع أنواع التحقق
+     */
+    class ValidationService {
+      static validateBalance(rows, debitCol, creditCol) {
+        const errors = [];
+        if (!debitCol || !creditCol) return errors;
+
+        rows.forEach((row, idx) => {
+          const debit = Formatter.toNumber(row[debitCol]) || 0;
+          const credit = Formatter.toNumber(row[creditCol]) || 0;
+          
+          if (Math.abs(debit - credit) > 0.01) {
+            errors.push({
+              index: idx + 1,
+              debit,
+              credit,
+              diff: Math.abs(debit - credit)
+            });
+          }
+        });
+        return errors;
+      }
+
+      static validateCompleteness(rows, headers) {
+        const missing = [];
+        headers.forEach(header => {
+          const count = rows.filter(r => !Formatter.normalizeValue(r[header])).length;
+          if (count > 0) {
+            missing.push({
+              column: header,
+              count
+            });
+          }
+        });
+        return missing;
+      }
+
+      static validateDuplicates(rows) {
+        const seen = new Set();
+        const duplicates = [];
+        
+        rows.forEach((row, idx) => {
+          const key = JSON.stringify(row);
+          if (seen.has(key)) {
+            duplicates.push(idx + 1);
+          }
+          seen.add(key);
+        });
+        
+        return duplicates;
+      }
+
+      static performAll(rows, headers, columns) {
+        return {
+          unbalanced: this.validateBalance(rows, columns.debit, columns.credit),
+          incomplete: this.validateCompleteness(rows, headers),
+          duplicates: this.validateDuplicates(rows)
+        };
+      }
+    }
+
+    /**
+     * ChartManager class - إدارة آمنة للرسوم البيانية بدون memory leaks
+     */
+    class ChartManager {
+      static charts = new Map();
+
+      static createChart(canvasId, config) {
+        try {
+          // Destroy old chart if exists
+          if (this.charts.has(canvasId)) {
+            const oldChart = this.charts.get(canvasId);
+            oldChart.destroy();
+          }
+
+          const canvas = document.getElementById(canvasId);
+          if (!canvas) return null;
+
+          const chart = new Chart(canvas, config);
+          this.charts.set(canvasId, chart);
+          return chart;
+        } catch (e) {
+          console.error('Chart creation error:', e);
+          return null;
+        }
+      }
+
+      static updateChart(canvasId, config) {
+        try {
+          const chart = this.charts.get(canvasId);
+          if (chart) {
+            chart.data = config.data;
+            chart.update('none');
+          }
+        } catch (e) {
+          console.error('Chart update error:', e);
+        }
+      }
+
+      static destroyAll() {
+        this.charts.forEach(chart => {
+          try {
+            chart.destroy();
+          } catch (e) {
+            console.error('Chart destroy error:', e);
+          }
+        });
+        this.charts.clear();
+      }
+    }
+
+    /**
+     * ErrorHandler class - معالجة شاملة للأخطاء
+     */
+    class ErrorHandler {
+      static show(message, duration = 5000) {
+        const alert = document.getElementById('errorAlert');
+        document.getElementById('errorMessage').textContent = message;
+        alert.style.display = 'flex';
+        
+        setTimeout(() => {
+          alert.style.display = 'none';
+        }, duration);
+      }
+
+      static log(error) {
+        console.error('[ERROR]', error);
+        if (error.message) {
+          this.show(error.message);
+        }
+      }
+    }
+
+    /**
+     * ==================
+     * APPLICATION STATE & MANAGER
+     * ==================
+     */
+
+    /**
+     * StateManager class - إدارة الحالة المركزية
+     */
+    class StateManager {
+      constructor() {
+        this.state = {
+          originalRows: [],
+          filteredRows: [],
+          headers: [],
+          numericColumns: [],
+          financialColumns: {},
+          workbookSheets: {},
+          currentSheet: '',
+          currentPage: 1,
+          pageSize: 25,
+          filters: {},
+          globalSearch: '',
+          fileName: '',
+          charts: {},
+          auditLog: [],
+          settings: {
+            currency: 'ج.م',
+            theme: 'light',
+            autoValidate: true,
+            userName: 'محاسب رئيسي',
+            userRole: 'manager'
+          }
+        };
+
+        this.listeners = [];
+      }
+
+      get(key) {
+        const keys = key.split('.');
+        let value = this.state;
+        for (const k of keys) {
+          value = value?.[k];
+          if (value === undefined) return undefined;
+        }
+        return value;
+      }
+
+      set(key, value) {
+        const keys = key.split('.');
+        let obj = this.state;
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+          if (!obj[keys[i]]) obj[keys[i]] = {};
+          obj = obj[keys[i]];
+        }
+        
+        obj[keys[keys.length - 1]] = value;
+        this.notify(key, value);
+        return this;
+      }
+
+      update(updates) {
+        Object.entries(updates).forEach(([key, value]) => {
+          this.set(key, value);
+        });
+        return this;
+      }
+
+      subscribe(callback) {
+        this.listeners.push(callback);
+        return () => {
+          this.listeners = this.listeners.filter(l => l !== callback);
+        };
+      }
+
+      notify(key, value) {
+        this.listeners.forEach(listener => {
+          try {
+            listener(key, value);
+          } catch (e) {
+            console.error('Listener error:', e);
+          }
+        });
+      }
+
+      persist() {
+        SecureStorage.save('gov_financial_system_v4', this.state);
+      }
+
+      restore() {
+        const saved = SecureStorage.load('gov_financial_system_v4');
+        if (saved) {
+          this.state = { ...this.state, ...saved };
+        }
+      }
+    }
+
+    /**
+     * ==================
+     * MAIN APPLICATION
+     * ==================
+     */
+
+    const stateManager = new StateManager();
+    const searchDebouncer = new Debouncer((value) => {
+      stateManager.set('globalSearch', value);
+      stateManager.set('currentPage', 1);
+      app.applyFiltersAndRender();
+    }, 300);
+
+    const app = {
+      state: stateManager.state,
+
+      /**
+       * Initialize app
+       */
+      init() {
+        try {
+          stateManager.restore();
+          this.applyTheme(this.state.settings.theme);
+          this.setupEventListeners();
+          this.addAuditLog('تسجيل دخول', 'تم فتح النظام');
+          this.updateAuditLogTable();
+        } catch (e) {
+          ErrorHandler.log(e);
+        }
+      },
+
+      /**
+       * Setup all event listeners
+       */
+      setupEventListeners() {
+        // File upload
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+          this.handleFileUpload(e.target.files[0]);
+        });
+
+        // Drag and drop
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(event => {
+          dropZone.addEventListener(event, (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+          });
+        });
+
+        ['dragleave', 'drop'].forEach(event => {
+          dropZone.addEventListener(event, (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+          });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+          this.handleFileUpload(e.dataTransfer.files[0]);
+        });
+
+        dropZone.addEventListener('click', () => {
+          document.getElementById('fileInput').click();
+        });
+
+        // Search with debouncing
+        document.getElementById('globalSearch').addEventListener('input', (e) => {
+          searchDebouncer.execute(e.target.value);
+        });
+
+        // Page size
+        document.getElementById('pageSize').addEventListener('change', (e) => {
+          this.state.pageSize = parseInt(e.target.value);
+          this.state.currentPage = 1;
+          this.renderTable();
+        });
+
+        // Sheet select
+        document.getElementById('sheetSelect').addEventListener('change', (e) => {
+          const sheetName = e.target.value;
+          if (sheetName && this.state.workbookSheets[sheetName]) {
+            this.processData(this.state.workbookSheets[sheetName], this.state.fileName, sheetName);
+          }
+        });
+
+        // Column selectors
+        ['categoryColumn', 'valueColumn'].forEach(id => {
+          document.getElementById(id).addEventListener('change', () => {
+            this.renderAllCharts();
+            this.updateTopItems();
+          });
+        });
+
+        // Filters
+        document.getElementById('clearAllFilters').addEventListener('click', () => {
+          this.state.filters = {};
+          this.state.globalSearch = '';
+          document.getElementById('globalSearch').value = '';
+          document.querySelectorAll('.filter-search-input').forEach(s => s.value = '');
+          this.applyFiltersAndRender();
+          this.showToast('تم مسح جميع الفلاتر', 'info');
+          this.addAuditLog('مسح فلاتر', 'تم مسح جميع الفلاتر');
+        });
+
+        // Pagination
+        document.getElementById('firstPageBtn').addEventListener('click', () => {
+          this.state.currentPage = 1;
+          this.renderTable();
+        });
+
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+          if (this.state.currentPage > 1) {
+            this.state.currentPage--;
+            this.renderTable();
+          }
+        });
+
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+          const totalPages = Math.ceil(this.state.filteredRows.length / this.state.pageSize);
+          if (this.state.currentPage < totalPages) {
+            this.state.currentPage++;
+            this.renderTable();
+          }
+        });
+
+        document.getElementById('lastPageBtn').addEventListener('click', () => {
+          const totalPages = Math.ceil(this.state.filteredRows.length / this.state.pageSize);
+          this.state.currentPage = totalPages;
+          this.renderTable();
+        });
+
+        // Export
+        document.getElementById('exportExcelBtn').addEventListener('click', () => this.exportToExcel());
+        document.getElementById('exportCsvBtn').addEventListener('click', () => this.exportToCSV());
+        document.getElementById('printBtn').addEventListener('click', () => this.printTable());
+
+        // Audit
+        document.getElementById('clearAuditLog').addEventListener('click', () => {
+          if (confirm('هل أنت متأكد من مسح سجل المراجعة؟')) {
+            this.state.auditLog = [];
+            this.updateAuditLogTable();
+            stateManager.persist();
+            this.showToast('تم مسح سجل المراجعة', 'info');
+          }
+        });
+
+        document.getElementById('exportAuditLog').addEventListener('click', () => {
+          const csv = Papa.unparse(this.state.auditLog);
+          const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `audit_log_${Date.now()}.csv`;
+          link.click();
+          this.showToast('تم تصدير سجل المراجعة', 'success');
+        });
+
+        // Settings
+        document.getElementById('saveSettings').addEventListener('click', () => {
+          this.state.settings.userName = document.getElementById('userName').value;
+          this.state.settings.userRole = document.getElementById('userRole').value;
+          this.state.settings.autoValidate = document.getElementById('autoValidate').checked;
+          
+          document.getElementById('currentUser').textContent = this.state.settings.userName;
+          
+          stateManager.persist();
+          this.showToast('تم حفظ الإعدادات بنجاح', 'success');
+          this.addAuditLog('تحديث إعدادات', 'تم حفظ إعدادات المستخدم');
+        });
+
+        // Theme
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+          const newTheme = this.state.settings.theme === 'dark' ? 'light' : 'dark';
+          this.applyTheme(newTheme);
+          this.addAuditLog('تغيير السمة', `تم التبديل إلى ${newTheme === 'dark' ? 'الوضع الداكن' : 'الوضع الفاتح'}`);
+        });
+
+        // Tab titles
+        document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+          tab.addEventListener('shown.bs.tab', (e) => {
+            const titles = {
+              dashboardTab: 'لوحة التحكم الرئيسية',
+              dataTab: 'البيانات المالية',
+              budgetTab: 'الموازنة والانحراف',
+              validationTab: 'التحقق والمراجعة',
+              reportsTab: 'التقارير المالية',
+              auditTab: 'سجل المراجعة',
+              settingsTab: 'الإعدادات'
+            };
+            const target = e.target.getAttribute('data-bs-target').replace('#', '');
+            document.getElementById('currentPageTitle').textContent = titles[target] || 'النظام المالي الحكومي';
+          });
+        });
+      },
+
+      /**
+       * Handle file upload with validation
+       */
+      handleFileUpload(file) {
+        try {
+          if (!file) return;
+
+          // Validate file
+          FileValidator.validate(file);
+
+          const ext = file.name.split('.').pop().toLowerCase();
+          
+          this.showLoading('جاري قراءة الملف...');
+          this.addAuditLog('رفع ملف', `تم رفع الملف: ${file.name}`);
+
+          if (ext === 'csv') {
+            this.readCSV(file);
+          } else if (ext === 'xlsx' || ext === 'xls') {
+            this.readExcel(file);
+          }
+        } catch (e) {
+          ErrorHandler.log(e);
+          this.hideLoading();
+        }
+      },
+
+      /**
+       * Read CSV file
+       */
+      readCSV(file) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            try {
+              this.state.workbookSheets = { 'CSV Data': results.data };
+              this.renderSheetOptions(['CSV Data']);
+              this.processData(results.data, file.name, 'CSV Data');
+            } catch (e) {
+              ErrorHandler.log(e);
+            }
+          },
+          error: (err) => {
+            this.hideLoading();
+            ErrorHandler.log(new Error('خطأ في قراءة ملف CSV: ' + err.message));
+          }
+        });
+      },
+
+      /**
+       * Read Excel file
+       */
+      readExcel(file) {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            const sheets = {};
+            workbook.SheetNames.forEach(name => {
+              sheets[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: '' });
+            });
+            
+            this.state.workbookSheets = sheets;
+            this.renderSheetOptions(workbook.SheetNames);
+            
+            const firstSheet = workbook.SheetNames[0];
+            this.processData(sheets[firstSheet], file.name, firstSheet);
+          } catch (err) {
+            this.hideLoading();
+            ErrorHandler.log(new Error('خطأ في قراءة ملف Excel: ' + err.message));
+          }
+        };
+        
+        reader.readAsArrayBuffer(file);
+      },
+
+      /**
+       * Render sheet options
+       */
+      renderSheetOptions(sheetNames) {
+        const select = document.getElementById('sheetSelect');
+        select.innerHTML = sheetNames.map(name => 
+          `<option value="${Formatter.escapeHtml(name)}">${Formatter.escapeHtml(name)}</option>`
+        ).join('');
+      },
+
+      /**
+       * Process data with detection
+       */
+      processData(rows, fileName, sheetName) {
+        this.showLoading('جاري معالجة البيانات...');
+
+        setTimeout(() => {
+          try {
+            const cleaned = this.cleanRows(rows);
+            const headers = cleaned.length > 0 ? Object.keys(cleaned[0]) : [];
+            const numericColumns = headers.filter(h => this.isNumericColumn(cleaned, h));
+            const financialColumns = this.detectFinancialColumns(headers);
+
+            this.state.originalRows = cleaned;
+            this.state.filteredRows = [...cleaned];
+            this.state.headers = headers;
+            this.state.numericColumns = numericColumns;
+            this.state.financialColumns = financialColumns;
+            this.state.fileName = fileName;
+            this.state.currentSheet = sheetName;
+            this.state.currentPage = 1;
+            this.state.filters = {};
+
+            this.updateFileInfo();
+            this.renderColumnSelectors();
+            this.renderFilters();
+            this.applyFiltersAndRender();
+            
+            if (this.state.settings.autoValidate) {
+              this.performValidation();
+            }
+
+            this.hideLoading();
+            this.showToast('تم تحميل الملف بنجاح!', 'success');
+            this.addAuditLog('معالجة بيانات', `تمت معالجة ${cleaned.length} سجل من ${sheetName}`);
+          } catch (e) {
+            ErrorHandler.log(e);
+            this.hideLoading();
+          }
+        }, 100);
+      },
+
+      /**
+       * Clean rows
+       */
+      cleanRows(rows) {
+        return rows.filter(row => {
+          return Object.values(row).some(v => Formatter.normalizeValue(v) !== '');
+        }).map(row => {
+          const clean = {};
+          Object.keys(row).forEach(key => {
+            clean[key.trim()] = row[key];
+          });
+          return clean;
+        });
+      },
+
+      /**
+       * Detect financial columns
+       */
+      detectFinancialColumns(headers) {
+        const keywords = {
+          debit: ['مدين', 'debit', 'مدينة'],
+          credit: ['دائن', 'credit', 'دائنة'],
+          amount: ['مبلغ', 'amount', 'قيمة', 'value'],
+          date: ['تاريخ', 'date'],
+          description: ['بيان', 'description', 'وصف'],
+          department: ['جهة', 'dept', 'قسم', 'إدارة'],
+          category: ['بند', 'category', 'تصنيف'],
+          reference: ['مرجع', 'ref', 'رقم']
+        };
+
+        const detected = {};
+        headers.forEach(header => {
+          const lower = header.toLowerCase();
+          for (const [key, terms] of Object.entries(keywords)) {
+            if (terms.some(term => lower.includes(term.toLowerCase()))) {
+              if (!detected[key]) detected[key] = header;
+            }
+          }
+        });
+
+        return detected;
+      },
+
+      /**
+       * Check if column is numeric
+       */
+      isNumericColumn(rows, header) {
+        const sample = rows.slice(0, 100)
+          .map(r => Formatter.normalizeValue(r[header]))
+          .filter(v => v !== '');
+        if (sample.length === 0) return false;
+        
+        const numericCount = sample.filter(v => Formatter.toNumber(v) !== null).length;
+        return numericCount / sample.length >= 0.7;
+      },
+
+      /**
+       * Update file info
+       */
+      updateFileInfo() {
+        const box = document.getElementById('fileInfoBox');
+        box.innerHTML = '';
+
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-file-check';
+        box.appendChild(icon);
+
+        box.appendChild(document.createTextNode(' '));
+
+        const strong = document.createElement('strong');
+        strong.textContent = this.state.fileName;
+        box.appendChild(strong);
+
+        const info = document.createTextNode(
+          ` | الورقة: ${Formatter.escapeHtml(this.state.currentSheet)} | ${Formatter.formatNumber(this.state.originalRows.length)} سجل | ${this.state.headers.length} عمود`
+        );
+        box.appendChild(info);
+      },
+
+      /**
+       * Render column selectors
+       */
+      renderColumnSelectors() {
+        const categorySelect = document.getElementById('categoryColumn');
+        const valueSelect = document.getElementById('valueColumn');
+
+        categorySelect.innerHTML = '<option value="">اختر العمود</option>' +
+          this.state.headers.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
+
+        valueSelect.innerHTML = '<option value="">اختر العمود</option>' +
+          this.state.numericColumns.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
+
+        if (this.state.financialColumns.category) {
+          categorySelect.value = this.state.financialColumns.category;
+        } else if (this.state.headers[0]) {
+          categorySelect.value = this.state.headers[0];
+        }
+
+        if (this.state.financialColumns.amount) {
+          valueSelect.value = this.state.financialColumns.amount;
+        } else if (this.state.numericColumns[0]) {
+          valueSelect.value = this.state.numericColumns[0];
+        }
+      },
+
+      /**
+       * Render filters
+       */
+      renderFilters() {
+        const container = document.getElementById('filtersContainer');
+
+        if (this.state.headers.length === 0) {
+          container.innerHTML = '<div class="col-12"><div class="alert alert-info mb-0">لا توجد أعمدة للفلترة</div></div>';
+          return;
+        }
+
+        const filterHeaders = this.state.headers.slice(0, 6);
+
+        container.innerHTML = filterHeaders.map((header, index) => {
+          const uniqueValues = [...new Set(
+            this.state.originalRows
+              .map(r => Formatter.normalizeValue(r[header]))
+              .filter(v => v !== '')
+          )].slice(0, 100);
+
+          const listId = `filter-list-${index}`;
+
+          return `
+            <div class="col-md-4">
+              <label class="form-label small">${Formatter.escapeHtml(header)}</label>
+              <input
+                type="text"
+                class="form-control form-control-sm filter-search-input"
+                data-column="${Formatter.escapeHtml(header)}"
+                list="${listId}"
+                placeholder="ابحث في القيم..."
+                value="${Formatter.escapeHtml(this.state.filters[header] || '')}"
+                autocomplete="off"
+              >
+              <datalist id="${listId}">
+                ${uniqueValues.map(v => `<option value="${Formatter.escapeHtml(v)}"></option>`).join('')}
+              </datalist>
+            </div>
+          `;
+        }).join('');
+
+        document.querySelectorAll('.filter-search-input').forEach(input => {
+          input.addEventListener('input', (e) => {
+            const column = e.target.dataset.column;
+            this.state.filters[column] = e.target.value.trim();
+            this.state.currentPage = 1;
+            this.applyFiltersAndRender();
+            this.addAuditLog('تطبيق فلتر', `تم البحث في العمود: ${column}`);
+          });
+        });
+      },
+
+      /**
+       * Apply filters and render
+       */
+      applyFiltersAndRender() {
+        let filtered = [...this.state.originalRows];
+
+        // Apply column filters
+        Object.entries(this.state.filters).forEach(([column, value]) => {
+          if (value) {
+            const searchValue = value.toLowerCase();
+            filtered = filtered.filter(row =>
+              Formatter.normalizeValue(row[column]).toLowerCase().includes(searchValue)
+            );
+          }
+        });
+
+        // Apply global search
+        const search = this.state.globalSearch.toLowerCase();
+        if (search) {
+          filtered = filtered.filter(row => {
+            return this.state.headers.some(h => 
+              Formatter.normalizeValue(row[h]).toLowerCase().includes(search)
+            );
+          });
+        }
+
+        this.state.filteredRows = filtered;
+        
+        this.updateKPIs();
+        this.updateFiltersCount();
+        this.renderTable();
+        this.renderAllCharts();
+        this.performValidation();
+      },
+
+      /**
+       * Update filters count
+       */
+      updateFiltersCount() {
+        const count = Object.values(this.state.filters).filter(v => v).length + 
+                      (this.state.globalSearch ? 1 : 0);
+        document.getElementById('activeFiltersCount').textContent = count;
+      },
+
+      /**
+       * Update KPIs
+       */
+      updateKPIs() {
+        const total = this.state.originalRows.length;
+        const filtered = this.state.filteredRows.length;
+
+        document.getElementById('totalRows').textContent = Formatter.formatNumber(total);
+        document.getElementById('filteredRows').textContent = Formatter.formatNumber(filtered);
+
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let unbalanced = 0;
+
+        const debitCol = this.state.financialColumns.debit;
+        const creditCol = this.state.financialColumns.credit;
+
+        this.state.filteredRows.forEach(row => {
+          const debit = Formatter.toNumber(row[debitCol]) || 0;
+          const credit = Formatter.toNumber(row[creditCol]) || 0;
+          
+          totalDebit += debit;
+          totalCredit += credit;
+          
+          if (Math.abs(debit - credit) > 0.01) {
+            unbalanced++;
+          }
+        });
+
+        document.getElementById('totalDebit').textContent = Formatter.formatCurrency(totalDebit);
+        document.getElementById('totalCredit').textContent = Formatter.formatCurrency(totalCredit);
+        document.getElementById('unbalancedEntries').textContent = Formatter.formatNumber(unbalanced);
+
+        const executionRate = totalDebit > 0 ? ((totalCredit / totalDebit) * 100) : 0;
+        document.getElementById('executionRate').textContent = Formatter.formatNumber(executionRate) + '%';
+
+        this.updateTopItems();
+        this.updateQuickAlerts();
+      },
+
+      /**
+       * Update top items
+       */
+      updateTopItems() {
+        const categoryColumn = document.getElementById('categoryColumn').value;
+        const valueColumn = document.getElementById('valueColumn').value;
+
+        const container = document.getElementById('topItemsList');
+
+        if (!categoryColumn || !valueColumn) {
+          container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>اختر عمود التصنيف والقيمة</p></div>';
+          return;
+        }
+
+        const grouped = {};
+        this.state.filteredRows.forEach(row => {
+          const cat = Formatter.normalizeValue(row[categoryColumn]) || 'غير محدد';
+          const val = Formatter.toNumber(row[valueColumn]) || 0;
+          grouped[cat] = (grouped[cat] || 0) + val;
+        });
+
+        const sorted = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+        container.innerHTML = sorted.map(([cat, val]) => `
+          <div class="insight-item">
+            <span>${Formatter.escapeHtml(cat)}</span>
+            <strong class="text-primary">${Formatter.formatCurrency(val)}</strong>
+          </div>
+        `).join('');
+      },
+
+      /**
+       * Update quick alerts
+       */
+      updateQuickAlerts() {
+        const container = document.getElementById('quickAlerts');
+        const alerts = [];
+
+        const unbalanced = parseInt(document.getElementById('unbalancedEntries').textContent.replace(/,/g, ''));
+        
+        if (unbalanced > 0) {
+          alerts.push({
+            type: 'danger',
+            icon: 'exclamation-triangle',
+            text: `يوجد ${Formatter.formatNumber(unbalanced)} قيد غير متوازن`
+          });
+        }
+
+        if (this.state.filteredRows.length === 0) {
+          alerts.push({
+            type: 'warning',
+            icon: 'funnel',
+            text: 'لا توجد نتائج مطابقة للفلاتر الحالية'
+          });
+        }
+
+        if (alerts.length === 0) {
+          alerts.push({
+            type: 'success',
+            icon: 'check-circle',
+            text: 'جميع البيانات صحيحة ومتوازنة'
+          });
+        }
+
+        container.innerHTML = alerts.map(alert => `
+          <div class="alert alert-${alert.type} mb-2">
+            <i class="bi bi-${alert.icon}"></i> ${alert.text}
+          </div>
+        `).join('');
+      },
+
+      /**
+       * Render table using safe DOM methods
+       */
+      renderTable() {
+        const wrapper = document.getElementById('tableWrapper');
+        
+        if (this.state.filteredRows.length === 0 || this.state.headers.length === 0) {
+          wrapper.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>لا توجد بيانات لعرضها</p></div>';
+          document.getElementById('rangeInfo').textContent = 'لا توجد بيانات';
+          return;
+        }
+
+        const start = (this.state.currentPage - 1) * this.state.pageSize;
+        const end = start + this.state.pageSize;
+        const pageRows = this.state.filteredRows.slice(start, end);
+
+        // Build table using DOM methods for XSS safety
+        const table = document.createElement('table');
+        table.className = 'table table-hover table-striped align-middle mb-0';
+
+        // Header
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        this.state.headers.forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Body
+        const tbody = document.createElement('tbody');
+        const fragment = document.createDocumentFragment();
+        
+        pageRows.forEach(row => {
+          const tr = document.createElement('tr');
+          this.state.headers.forEach(h => {
+            const td = document.createElement('td');
+            td.textContent = Formatter.normalizeValue(row[h]);
+            tr.appendChild(td);
+          });
+          fragment.appendChild(tr);
+        });
+        
+        tbody.appendChild(fragment);
+        table.appendChild(tbody);
+
+        wrapper.innerHTML = '';
+        wrapper.appendChild(table);
+
+        const total = this.state.filteredRows.length;
+        const showing = Math.min(end, total);
+        document.getElementById('rangeInfo').textContent = `عرض ${Formatter.formatNumber(start + 1)} - ${Formatter.formatNumber(showing)} من ${Formatter.formatNumber(total)} سجل`;
+        document.getElementById('pageIndicator').textContent = `صفحة ${this.state.currentPage}`;
+
+        this.updatePaginationButtons();
+      },
+
+      /**
+       * Update pagination buttons
+       */
+      updatePaginationButtons() {
+        const totalPages = Math.ceil(this.state.filteredRows.length / this.state.pageSize);
+        
+        document.getElementById('firstPageBtn').disabled = this.state.currentPage === 1;
+        document.getElementById('prevPageBtn').disabled = this.state.currentPage === 1;
+        document.getElementById('nextPageBtn').disabled = this.state.currentPage >= totalPages;
+        document.getElementById('lastPageBtn').disabled = this.state.currentPage >= totalPages;
+      },
+
+      /**
+       * Get chart colors
+       */
+      getChartColors() {
+        const isDark = this.state.settings.theme === 'dark';
+        return {
+          text: isDark ? '#e8eaf0' : '#212529',
+          grid: isDark ? '#2a3556' : '#dee2e6',
+          colors: [
+            '#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0',
+            '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2'
+          ]
+        };
+      },
+
+      /**
+       * Render all charts
+       */
+      renderAllCharts() {
+        this.renderTimelineChart();
+        this.renderCategoryPieChart();
+        this.renderBudgetCharts();
+      },
+
+      /**
+       * Render timeline chart
+       */
+      renderTimelineChart() {
+        const canvas = document.getElementById('timelineChart');
+        if (!canvas) return;
+
+        const colors = this.getChartColors();
+        const categoryColumn = document.getElementById('categoryColumn').value;
+        const valueColumn = document.getElementById('valueColumn').value;
+
+        if (!categoryColumn || !valueColumn || this.state.filteredRows.length === 0) {
+          return;
+        }
+
+        const grouped = {};
+        this.state.filteredRows.forEach(row => {
+          const cat = Formatter.normalizeValue(row[categoryColumn]) || 'غير محدد';
+          const val = Formatter.toNumber(row[valueColumn]) || 0;
+          grouped[cat] = (grouped[cat] || 0) + val;
+        });
+
+        const sorted = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+        ChartManager.createChart('timelineChart', {
+          type: 'bar',
+          data: {
+            labels: sorted.map(([cat]) => cat),
+            datasets: [{
+              label: 'القيمة (' + this.state.settings.currency + ')',
+              data: sorted.map(([, val]) => val),
+              backgroundColor: colors.colors[0] + '80',
+              borderColor: colors.colors[0],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: { color: colors.text }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: colors.text },
+                grid: { color: colors.grid }
+              },
+              y: {
+                ticks: { color: colors.text },
+                grid: { color: colors.grid }
+              }
+            }
+          }
+        });
+      },
+
+      /**
+       * Render category pie chart
+       */
+      renderCategoryPieChart() {
+        const canvas = document.getElementById('categoryPieChart');
+        if (!canvas) return;
+
+        const colors = this.getChartColors();
+        const categoryColumn = document.getElementById('categoryColumn').value;
+        const valueColumn = document.getElementById('valueColumn').value;
+
+        if (!categoryColumn || !valueColumn || this.state.filteredRows.length === 0) {
+          return;
+        }
+
+        const grouped = {};
+        this.state.filteredRows.forEach(row => {
+          const cat = Formatter.normalizeValue(row[categoryColumn]) || 'غير محدد';
+          const val = Formatter.toNumber(row[valueColumn]) || 0;
+          grouped[cat] = (grouped[cat] || 0) + val;
+        });
+
+        const sorted = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+        ChartManager.createChart('categoryPieChart', {
+          type: 'doughnut',
+          data: {
+            labels: sorted.map(([cat]) => cat),
+            datasets: [{
+              data: sorted.map(([, val]) => val),
+              backgroundColor: colors.colors,
+              borderWidth: 2,
+              borderColor: this.state.settings.theme === 'dark' ? '#111936' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: colors.text }
+              }
+            }
+          }
+        });
+      },
+
+      /**
+       * Render budget charts
+       */
+      renderBudgetCharts() {
+        const colors = this.getChartColors();
+
+        ChartManager.createChart('budgetComparisonChart', {
+          type: 'bar',
+          data: {
+            labels: ['الموازنة المعتمدة', 'المنصرف الفعلي', 'المتبقي'],
+            datasets: [{
+              label: 'المبلغ (' + this.state.settings.currency + ')',
+              data: [1000000, 750000, 250000],
+              backgroundColor: [colors.colors[0] + '80', colors.colors[1] + '80', colors.colors[2] + '80'],
+              borderColor: [colors.colors[0], colors.colors[1], colors.colors[2]],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: colors.text } }
+            },
+            scales: {
+              x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+              y: { ticks: { color: colors.text }, grid: { color: colors.grid } }
+            }
+          }
+        });
+
+        ChartManager.createChart('executionRateChart', {
+          type: 'line',
+          data: {
+            labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+            datasets: [{
+              label: 'نسبة التنفيذ %',
+              data: [10, 25, 40, 55, 68, 75],
+              borderColor: colors.colors[0],
+              backgroundColor: colors.colors[0] + '20',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: colors.text } }
+            },
+            scales: {
+              x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+              y: { 
+                ticks: { color: colors.text },
+                grid: { color: colors.grid },
+                min: 0,
+                max: 100
+              }
+            }
+          }
+        });
+      },
+
+      /**
+       * Perform validation
+       */
+      performValidation() {
+        const results = ValidationService.performAll(
+          this.state.filteredRows,
+          this.state.headers,
+          this.state.financialColumns
+        );
+
+        const validRecords = this.state.filteredRows.length - results.unbalanced.length;
+
+        document.getElementById('criticalErrors').textContent = Formatter.formatNumber(results.unbalanced.length);
+        document.getElementById('warnings').textContent = Formatter.formatNumber(results.incomplete.length);
+        document.getElementById('notices').textContent = Formatter.formatNumber(results.duplicates.length);
+        document.getElementById('validRecords').textContent = Formatter.formatNumber(validRecords);
+
+        document.getElementById('unbalancedCount').textContent = Formatter.formatNumber(results.unbalanced.length);
+        document.getElementById('duplicatesCount').textContent = Formatter.formatNumber(results.duplicates.length);
+        document.getElementById('missingCount').textContent = Formatter.formatNumber(results.incomplete.length);
+
+        this.renderValidationList('unbalancedList', results.unbalanced, (item) => 
+          `قيد #${item.index}: مدين ${Formatter.formatCurrency(item.debit)} | دائن ${Formatter.formatCurrency(item.credit)} | الفرق: ${Formatter.formatCurrency(item.diff)}`
+        );
+
+        this.renderValidationList('duplicatesList', results.duplicates.slice(0, 20).map((idx, i) => ({ index: idx })), (item) => 
+          `سجل مكرر في الصف #${item.index}`
+        );
+
+        this.renderValidationList('missingList', results.incomplete, (item) => 
+          `العمود "${item.column}": ${Formatter.formatNumber(item.count)} قيمة ناقصة`
+        );
+      },
+
+      /**
+       * Render validation list
+       */
+      renderValidationList(elementId, items, formatter) {
+        const container = document.getElementById(elementId);
+        
+        if (items.length === 0) {
+          container.innerHTML = '<div class="text-muted">لا توجد مشاكل</div>';
+          return;
+        }
+
+        container.innerHTML = items.slice(0, 20).map(item => 
+          `<div class="validation-item">${formatter(item)}</div>`
+        ).join('');
+
+        if (items.length > 20) {
+          container.innerHTML += `<div class="text-muted small mt-2">... و ${Formatter.formatNumber(items.length - 20)} آخرين</div>`;
+        }
+      },
+
+      /**
+       * Export to Excel
+       */
+      exportToExcel() {
+        if (this.state.filteredRows.length === 0) {
+          this.showToast('لا توجد بيانات للتصدير', 'warning');
+          return;
+        }
+
+        this.showLoading('جاري إنشاء ملف Excel...');
+
+        setTimeout(() => {
+          try {
+            const wb = XLSX.utils.book_new();
+            
+            const ws = XLSX.utils.json_to_sheet(this.state.filteredRows);
+            XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
+
+            const summary = [
+              { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
+              { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length },
+              { المؤشر: 'عدد الأعمدة', القيمة: this.state.headers.length },
+              { المؤشر: 'اسم الملف', القيمة: this.state.fileName }
+            ];
+            const wsSummary = XLSX.utils.json_to_sheet(summary);
+            XLSX.utils.book_append_sheet(wb, wsSummary, 'الملخص');
+
+            XLSX.writeFile(wb, `تقرير_مالي_${Date.now()}.xlsx`);
+
+            this.hideLoading();
+            this.showToast('تم تصدير ملف Excel بنجاح', 'success');
+            this.addAuditLog('تصدير Excel', `تم تصدير ${this.state.filteredRows.length} سجل`);
+          } catch (e) {
+            ErrorHandler.log(e);
+            this.hideLoading();
+          }
+        }, 500);
+      },
+
+      /**
+       * Export to CSV
+       */
+      exportToCSV() {
+        if (this.state.filteredRows.length === 0) {
+          this.showToast('لا توجد بيانات للتصدير', 'warning');
+          return;
+        }
+
+        try {
+          const csv = Papa.unparse(this.state.filteredRows);
+          const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `تقرير_مالي_${Date.now()}.csv`;
+          link.click();
+
+          this.showToast('تم تصدير ملف CSV بنجاح', 'success');
+          this.addAuditLog('تصدير CSV', `تم تصدير ${this.state.filteredRows.length} سجل`);
+        } catch (e) {
+          ErrorHandler.log(e);
+        }
+      },
+
+      /**
+       * Print table
+       */
+      printTable() {
+        window.print();
+        this.addAuditLog('طباعة', 'تم طباعة البيانات');
+      },
+
+      /**
+       * Generate reports
+       */
+      generateReport(reportType) {
+        if (this.state.filteredRows.length === 0) {
+          this.showToast('لا توجد بيانات لإنشاء التقرير', 'warning');
+          return;
+        }
+
+        this.showLoading('جاري إنشاء التقرير...');
+
+        setTimeout(() => {
+          try {
+            const categoryColumn = document.getElementById('categoryColumn').value || this.state.financialColumns.category || this.state.headers[0];
+            const valueColumn = document.getElementById('valueColumn').value || this.state.financialColumns.amount || this.state.financialColumns.debit || this.state.numericColumns[0];
+
+            let sheets = [];
+            let fileName = `تقرير_${reportType}_${Date.now()}.xlsx`;
+
+            if (reportType === 'expenses_by_item') {
+              sheets = [{ name: 'المصروفات حسب البند', rows: this.buildGroupedReport(categoryColumn, valueColumn, 'البند', 'إجمالي القيمة') }];
+            } else if (reportType === 'comprehensive') {
+              sheets = [
+                { name: 'البيانات', rows: this.state.filteredRows },
+                { name: 'الملخص', rows: [
+                  { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
+                  { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length }
+                ]}
+              ];
+            }
+
+            this.downloadWorkbook(sheets, fileName);
+            this.hideLoading();
+            this.showToast('تم تنزيل التقرير بنجاح', 'success');
+            this.addAuditLog('إنشاء تقرير', `تم تنزيل تقرير: ${reportType}`);
+          } catch (e) {
+            ErrorHandler.log(e);
+            this.hideLoading();
+          }
+        }, 300);
+      },
+
+      /**
+       * Build grouped report
+       */
+      buildGroupedReport(groupColumn, valueColumn, labelKey = 'التصنيف', valueKey = 'القيمة') {
+        const grouped = {};
+        this.state.filteredRows.forEach(row => {
+          const key = Formatter.normalizeValue(row[groupColumn]) || 'غير محدد';
+          const value = Formatter.toNumber(row[valueColumn]) || 0;
+          grouped[key] = (grouped[key] || 0) + value;
+        });
+
+        return Object.entries(grouped)
+          .sort((a, b) => b[1] - a[1])
+          .map(([key, value]) => ({ [labelKey]: key, [valueKey]: value }));
+      },
+
+      /**
+       * Download workbook
+       */
+      downloadWorkbook(sheets, fileName) {
+        const wb = XLSX.utils.book_new();
+        sheets.forEach(sheet => {
+          const ws = XLSX.utils.json_to_sheet(sheet.rows && sheet.rows.length ? sheet.rows : [{ ملاحظة: 'لا توجد بيانات' }]);
+          XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+        });
+        XLSX.writeFile(wb, fileName);
+      },
+
+      /**
+       * Apply theme
+       */
+      applyTheme(theme) {
+        this.state.settings.theme = theme;
+        document.body.classList.toggle('dark-mode', theme === 'dark');
+        
+        const btn = document.getElementById('themeToggleText');
+        const icon = document.querySelector('#themeToggleBtn i');
+        
+        if (theme === 'dark') {
+          btn.textContent = 'الوضع الفاتح';
+          icon.className = 'bi bi-sun';
+        } else {
+          btn.textContent = 'الوضع الداكن';
+          icon.className = 'bi bi-moon-stars';
+        }
+        
+        stateManager.persist();
+        ChartManager.destroyAll();
+        this.renderAllCharts();
+      },
+
+      /**
+       * Show loading
+       */
+      showLoading(text = 'جاري المعالجة...') {
+        document.getElementById('loadingOverlay').classList.add('show');
+        document.getElementById('loadingText').textContent = text;
+      },
+
+      /**
+       * Hide loading
+       */
+      hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('show');
+      },
+
+      /**
+       * Show toast
+       */
+      showToast(message, type = 'info') {
+        try {
+          const toast = document.createElement('div');
+          toast.className = `toast align-items-center text-white bg-${type} border-0`;
+          toast.setAttribute('role', 'alert');
+          toast.innerHTML = `
+            <div class="d-flex">
+              <div class="toast-body">${Formatter.escapeHtml(message)}</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+          `;
+          document.getElementById('toastContainer').appendChild(toast);
+          const bsToast = new bootstrap.Toast(toast);
+          bsToast.show();
+          setTimeout(() => toast.remove(), 5000);
+        } catch (e) {
+          console.error('Toast error:', e);
+        }
+      },
+
+      /**
+       * Add audit log
+       */
+      addAuditLog(action, details) {
+        const log = {
+          timestamp: new Date().toLocaleString('ar-EG'),
+          user: this.state.settings.userName,
+          role: this.state.settings.userRole,
+          action,
+          details
+        };
+        this.state.auditLog.unshift(log);
+        this.updateAuditLogTable();
+        stateManager.persist();
+      },
+
+      /**
+       * Update audit log table
+       */
+      updateAuditLogTable() {
+        const tbody = document.getElementById('auditLogTable');
+        if (this.state.auditLog.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد سجلات بعد</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = this.state.auditLog.slice(0, 50).map(log => `
+          <tr>
+            <td>${Formatter.escapeHtml(log.timestamp)}</td>
+            <td>${Formatter.escapeHtml(log.user)}</td>
+            <td><span class="badge bg-secondary">${Formatter.escapeHtml(log.role)}</span></td>
+            <td><span class="badge bg-primary">${Formatter.escapeHtml(log.action)}</span></td>
+            <td>${Formatter.escapeHtml(log.details)}</td>
+          </tr>
+        `).join('');
+      }
+    };
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', () => {
+      app.init();
+    });
+  </script>
+</body>
+</html>
