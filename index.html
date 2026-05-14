@@ -3360,11 +3360,44 @@
 
         document.body.appendChild(reportElement);
 
+        const buildChartPageElement = (chartTitle, chartDataUrl) => {
+          const el = document.createElement('div');
+          el.setAttribute('dir', 'rtl');
+          el.style.position = 'fixed';
+          el.style.left = '-100000px';
+          el.style.top = '0';
+          el.style.width = '1120px';
+          el.style.background = '#ffffff';
+          el.style.color = '#111827';
+          el.style.padding = '24px';
+          el.style.fontFamily = 'Tahoma, Arial, sans-serif';
+          el.innerHTML = `
+            <style>
+              .chart-page-header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 16px; }
+              .chart-page-header h1 { margin: 0; font-size: 24px; color: #0f172a; }
+              .chart-page-header p { margin: 6px 0 0; font-size: 13px; color: #475569; }
+              .chart-frame { margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; }
+              .chart-frame h2 { margin: 0 0 10px; font-size: 18px; color: #1e3a8a; }
+              .chart-frame img { width: 100%; height: auto; display: block; }
+            </style>
+            <div class="chart-page-header">
+              <h1>${Formatter.escapeHtml(payload.title)}</h1>
+              <p>الرسوم البيانية - ${Formatter.escapeHtml(new Date().toLocaleString('ar-EG'))}</p>
+            </div>
+            <div class="chart-frame">
+              <h2>${Formatter.escapeHtml(chartTitle)}</h2>
+              <img src="${chartDataUrl}" alt="${Formatter.escapeHtml(chartTitle)}" />
+            </div>
+          `;
+          document.body.appendChild(el);
+          return el;
+        };
+
         try {
           await new Promise(resolve => requestAnimationFrame(resolve));
 
           const canvas = await html2canvas(reportElement, {
-            scale: 2,
+            scale: 3,
             useCORS: true,
             backgroundColor: '#ffffff',
             width: reportElement.scrollWidth,
@@ -3402,37 +3435,49 @@
               executionRateChart: 'نسبة التنفيذ'
             };
 
-            payload.chartIds.forEach((chartId) => {
+            for (const chartId of payload.chartIds) {
               const canvas = document.getElementById(chartId);
-              if (!canvas) return;
+              if (!canvas) continue;
 
               const chartData = canvas.toDataURL('image/png', 1.0);
-              const chartRatio = canvas.height / canvas.width;
               const chartTitle = chartTitleMap[chartId] || 'رسم بياني';
+
+              const chartPage = buildChartPageElement(chartTitle, chartData);
+              await new Promise(resolve => requestAnimationFrame(resolve));
+
+              const chartCanvas = await html2canvas(chartPage, {
+                scale: 3,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                width: chartPage.scrollWidth,
+                height: chartPage.scrollHeight,
+                windowWidth: chartPage.scrollWidth,
+                windowHeight: chartPage.scrollHeight
+              });
+
+              chartPage.remove();
+
+              const chartImage = chartCanvas.toDataURL('image/jpeg', 0.98);
+              const imgWidth = pageWidth;
+              const imgHeight = (chartCanvas.height * imgWidth) / chartCanvas.width;
 
               pdf.addPage();
 
-              const margin = 12;
-              const titleY = 16;
-              const availableWidth = pageWidth - (margin * 2);
-              const maxChartHeight = pageHeight - 34;
-              let chartWidth = availableWidth;
-              let chartHeight = chartWidth * chartRatio;
-
-              if (chartHeight > maxChartHeight) {
-                chartHeight = maxChartHeight;
-                chartWidth = chartHeight / chartRatio;
+              if (imgHeight <= pageHeight) {
+                pdf.addImage(chartImage, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+              } else {
+                let remaining = imgHeight;
+                let currentY = 0;
+                pdf.addImage(chartImage, 'JPEG', 0, currentY, imgWidth, imgHeight, undefined, 'FAST');
+                remaining -= pageHeight;
+                while (remaining > 0) {
+                  currentY = remaining - imgHeight;
+                  pdf.addPage();
+                  pdf.addImage(chartImage, 'JPEG', 0, currentY, imgWidth, imgHeight, undefined, 'FAST');
+                  remaining -= pageHeight;
+                }
               }
-
-              const x = (pageWidth - chartWidth) / 2;
-              const yPos = titleY + 6;
-
-              pdf.setFontSize(13);
-              pdf.text(chartTitle, pageWidth - margin, titleY, { align: 'right' });
-              pdf.setDrawColor(203, 213, 225);
-              pdf.line(margin, 20, pageWidth - margin, 20);
-              pdf.addImage(chartData, 'PNG', x, yPos + 4, chartWidth, chartHeight, undefined, 'FAST');
-            });
+            }
           }
 
           pdf.save(fileName);
