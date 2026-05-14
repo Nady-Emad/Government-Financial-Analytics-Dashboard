@@ -3367,6 +3367,7 @@
           el.style.left = '-100000px';
           el.style.top = '0';
           el.style.width = '1120px';
+          el.style.minHeight = '780px';
           el.style.background = '#ffffff';
           el.style.color = '#111827';
           el.style.padding = '24px';
@@ -3376,9 +3377,9 @@
               .chart-page-header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 16px; }
               .chart-page-header h1 { margin: 0; font-size: 24px; color: #0f172a; }
               .chart-page-header p { margin: 6px 0 0; font-size: 13px; color: #475569; }
-              .chart-frame { margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; }
+              .chart-frame { margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; min-height: 620px; display: flex; flex-direction: column; }
               .chart-frame h2 { margin: 0 0 10px; font-size: 18px; color: #1e3a8a; }
-              .chart-frame img { width: 100%; height: auto; display: block; }
+              .chart-frame img { width: 100%; flex: 1; object-fit: contain; display: block; }
             </style>
             <div class="chart-page-header">
               <h1>${Formatter.escapeHtml(payload.title)}</h1>
@@ -3446,7 +3447,7 @@
               await new Promise(resolve => requestAnimationFrame(resolve));
 
               const chartCanvas = await html2canvas(chartPage, {
-                scale: 3,
+                scale: 4,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 width: chartPage.scrollWidth,
@@ -3458,25 +3459,23 @@
               chartPage.remove();
 
               const chartImage = chartCanvas.toDataURL('image/jpeg', 0.98);
-              const imgWidth = pageWidth;
-              const imgHeight = (chartCanvas.height * imgWidth) / chartCanvas.width;
-
               pdf.addPage();
 
-              if (imgHeight <= pageHeight) {
-                pdf.addImage(chartImage, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
-              } else {
-                let remaining = imgHeight;
-                let currentY = 0;
-                pdf.addImage(chartImage, 'JPEG', 0, currentY, imgWidth, imgHeight, undefined, 'FAST');
-                remaining -= pageHeight;
-                while (remaining > 0) {
-                  currentY = remaining - imgHeight;
-                  pdf.addPage();
-                  pdf.addImage(chartImage, 'JPEG', 0, currentY, imgWidth, imgHeight, undefined, 'FAST');
-                  remaining -= pageHeight;
-                }
+              const margin = 8;
+              const availWidth = pageWidth - margin * 2;
+              const availHeight = pageHeight - margin * 2;
+              const imgRatio = chartCanvas.height / chartCanvas.width;
+              let drawWidth = availWidth;
+              let drawHeight = drawWidth * imgRatio;
+
+              if (drawHeight > availHeight) {
+                drawHeight = availHeight;
+                drawWidth = drawHeight / imgRatio;
               }
+
+              const x = (pageWidth - drawWidth) / 2;
+              const y = (pageHeight - drawHeight) / 2;
+              pdf.addImage(chartImage, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
             }
           }
 
