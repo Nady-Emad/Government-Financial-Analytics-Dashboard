@@ -1211,9 +1211,14 @@
                   <div class="report-icon"><i class="bi bi-file-earmark-bar-graph"></i></div>
                   <h6>تقرير المصروفات حسب البند</h6>
                   <p class="text-muted small">تفصيل كامل للمصروفات مجمعة حسب البنود</p>
-                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('expenses_by_item')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary w-50" onclick="app.generateReport('expenses_by_item', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('expenses_by_item', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1222,9 +1227,14 @@
                   <div class="report-icon"><i class="bi bi-building"></i></div>
                   <h6>تقرير المصروفات حسب الجهة</h6>
                   <p class="text-muted small">توزيع المصروفات على الجهات الحكومية</p>
-                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('expenses_by_dept')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary w-50" onclick="app.generateReport('expenses_by_dept', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('expenses_by_dept', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1233,9 +1243,14 @@
                   <div class="report-icon"><i class="bi bi-calendar-range"></i></div>
                   <h6>تقرير الحركة الشهرية</h6>
                   <p class="text-muted small">ملخص المصروفات والإيرادات شهريًا</p>
-                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('monthly_activity')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary w-50" onclick="app.generateReport('monthly_activity', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('monthly_activity', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1244,9 +1259,14 @@
                   <div class="report-icon"><i class="bi bi-exclamation-triangle"></i></div>
                   <h6>تقرير القيود غير المتوازنة</h6>
                   <p class="text-muted small">قائمة بجميع القيود التي لا تتطابق فيها الأطراف</p>
-                  <button class="btn btn-sm btn-danger w-100" onclick="app.generateReport('unbalanced')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-danger w-50" onclick="app.generateReport('unbalanced', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('unbalanced', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1255,9 +1275,14 @@
                   <div class="report-icon"><i class="bi bi-pie-chart"></i></div>
                   <h6>تقرير الموازنة والانحراف</h6>
                   <p class="text-muted small">مقارنة شاملة بين المخطط والفعلي</p>
-                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('budget_variance')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary w-50" onclick="app.generateReport('budget_variance', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('budget_variance', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1266,9 +1291,14 @@
                   <div class="report-icon"><i class="bi bi-file-earmark-check"></i></div>
                   <h6>التقرير الشامل</h6>
                   <p class="text-muted small">تقرير كامل بجميع المؤشرات والتحليلات</p>
-                  <button class="btn btn-sm btn-primary w-100" onclick="app.generateReport('comprehensive')">
-                    إنشاء التقرير
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary w-50" onclick="app.generateReport('comprehensive', 'excel')">
+                      Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger w-50" onclick="app.generateReport('comprehensive', 'pdf')">
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1332,6 +1362,7 @@
                   <select class="form-select" id="userRole" aria-label="اختر الدور الوظيفي">
                     <option value="accountant">محاسب</option>
                     <option value="auditor">مراجع مالي</option>
+                    <option value="financial_admin_observer">مراقب مالي وإداري</option>
                     <option value="manager" selected>مدير مالي</option>
                     <option value="director">مدير عام</option>
                     <option value="admin">مسؤول نظام</option>
@@ -1844,22 +1875,38 @@
 
         // Column selectors
         ['categoryColumn', 'valueColumn', 'debitColumn', 'creditColumn', 'amountColumn', 'dateColumn', 'categoryColumnManual'].forEach(id => {
-          document.getElementById(id).addEventListener('change', () => {
-            const manualCategory = document.getElementById('categoryColumnManual').value;
-            if (manualCategory) {
-              this.state.financialColumns.category = manualCategory;
-              document.getElementById('categoryColumn').value = manualCategory;
+          document.getElementById(id).addEventListener('change', (e) => {
+            const changedId = e.target.id;
+            const value = e.target.value || '';
+            const categoryMain = document.getElementById('categoryColumn');
+            const categoryManual = document.getElementById('categoryColumnManual');
+            const valueColumn = document.getElementById('valueColumn');
+
+            if (changedId === 'categoryColumn') {
+              this.state.financialColumns.category = value;
+              if (categoryManual) categoryManual.value = '';
             }
 
-            this.state.financialColumns.debit = document.getElementById('debitColumn').value || this.state.financialColumns.debit;
-            this.state.financialColumns.credit = document.getElementById('creditColumn').value || this.state.financialColumns.credit;
-            this.state.financialColumns.amount = document.getElementById('amountColumn').value || this.state.financialColumns.amount;
-            this.state.financialColumns.date = document.getElementById('dateColumn').value || this.state.financialColumns.date;
-
-            const valueColumn = document.getElementById('valueColumn').value;
-            if (valueColumn) {
-              this.state.financialColumns.amount = valueColumn;
+            if (changedId === 'categoryColumnManual') {
+              if (value) {
+                this.state.financialColumns.category = value;
+                if (categoryMain) categoryMain.value = value;
+              }
             }
+
+            if (changedId === 'valueColumn') {
+              this.state.financialColumns.amount = value;
+              const amountColumn = document.getElementById('amountColumn');
+              if (amountColumn && value) amountColumn.value = value;
+            }
+
+            if (changedId === 'debitColumn') this.state.financialColumns.debit = value;
+            if (changedId === 'creditColumn') this.state.financialColumns.credit = value;
+            if (changedId === 'amountColumn') {
+              this.state.financialColumns.amount = value;
+              if (valueColumn && value) valueColumn.value = value;
+            }
+            if (changedId === 'dateColumn') this.state.financialColumns.date = value;
 
             this.updateKPIs();
             this.renderAllCharts();
@@ -2240,9 +2287,7 @@
         if (this.state.financialColumns.date) {
           dateSelect.value = this.state.financialColumns.date;
         }
-        if (this.state.financialColumns.category) {
-          categoryManualSelect.value = this.state.financialColumns.category;
-        }
+        categoryManualSelect.value = '';
       },
 
       /**
@@ -3037,7 +3082,7 @@
       /**
        * Generate reports
        */
-      generateReport(reportType) {
+      generateReport(reportType, format = 'excel') {
         if (this.state.filteredRows.length === 0) {
           this.showToast('لا توجد بيانات لإنشاء التقرير', 'warning');
           return;
@@ -3047,33 +3092,183 @@
 
         setTimeout(() => {
           try {
-            const categoryColumn = document.getElementById('categoryColumn').value || this.state.financialColumns.category || this.state.headers[0];
-            const valueColumn = document.getElementById('valueColumn').value || this.state.financialColumns.amount || this.state.financialColumns.debit || this.state.numericColumns[0];
+            const payload = this.buildReportPayload(reportType);
 
-            let sheets = [];
-            let fileName = `تقرير_${reportType}_${Date.now()}.xlsx`;
-
-            if (reportType === 'expenses_by_item') {
-              sheets = [{ name: 'المصروفات حسب البند', rows: this.buildGroupedReport(categoryColumn, valueColumn, 'البند', 'إجمالي القيمة') }];
-            } else if (reportType === 'comprehensive') {
-              sheets = [
-                { name: 'البيانات', rows: this.state.filteredRows },
-                { name: 'الملخص', rows: [
-                  { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
-                  { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length }
-                ]}
-              ];
+            if (format === 'pdf') {
+              this.downloadReportPdf(payload, `تقرير_${reportType}_${Date.now()}.pdf`);
+            } else {
+              this.downloadWorkbook(payload.sheets, `تقرير_${reportType}_${Date.now()}.xlsx`);
             }
 
-            this.downloadWorkbook(sheets, fileName);
             this.hideLoading();
-            this.showToast('تم تنزيل التقرير بنجاح', 'success');
-            this.addAuditLog('إنشاء تقرير', `تم تنزيل تقرير: ${reportType}`);
+            this.showToast(`تم تنزيل التقرير بصيغة ${format.toUpperCase()} بنجاح`, 'success');
+            this.addAuditLog('إنشاء تقرير', `تم تنزيل تقرير: ${reportType} (${format.toUpperCase()})`);
           } catch (e) {
             ErrorHandler.log(e);
             this.hideLoading();
           }
         }, 300);
+      },
+
+      /**
+       * Build report payload for export formats
+       */
+      buildReportPayload(reportType) {
+        const { debitCol, creditCol, amountCol, categoryCol, dateCol } = this.resolveFinancialColumns();
+        const categoryColumn = categoryCol || this.state.headers[0];
+        const valueColumn = amountCol || debitCol || this.state.numericColumns[0];
+        const summary = this.calculateFinancialSummary();
+        const titles = {
+          expenses_by_item: 'تقرير المصروفات حسب البند',
+          expenses_by_dept: 'تقرير المصروفات حسب الجهة',
+          monthly_activity: 'تقرير الحركة الشهرية',
+          unbalanced: 'تقرير القيود غير المتوازنة',
+          budget_variance: 'تقرير الموازنة والانحراف',
+          comprehensive: 'التقرير الشامل'
+        };
+
+        const chartMap = {
+          expenses_by_item: ['timelineChart', 'categoryPieChart'],
+          expenses_by_dept: ['timelineChart', 'categoryPieChart'],
+          monthly_activity: ['executionRateChart'],
+          unbalanced: [],
+          budget_variance: ['budgetComparisonChart', 'executionRateChart'],
+          comprehensive: ['timelineChart', 'categoryPieChart', 'budgetComparisonChart', 'executionRateChart']
+        };
+
+        let sheets = [];
+
+        if (reportType === 'expenses_by_item') {
+          sheets = [{ name: 'المصروفات حسب البند', rows: this.buildGroupedReport(categoryColumn, valueColumn, 'البند', 'إجمالي القيمة') }];
+        } else if (reportType === 'expenses_by_dept') {
+          const deptCol = this.state.financialColumns.department || categoryColumn;
+          sheets = [{ name: 'المصروفات حسب الجهة', rows: this.buildGroupedReport(deptCol, valueColumn, 'الجهة', 'إجمالي القيمة') }];
+        } else if (reportType === 'monthly_activity') {
+          const monthly = {};
+          const usedDateCol = dateCol || this.state.headers.find(h => /تاريخ|date/i.test(h));
+          this.state.filteredRows.forEach(row => {
+            const dateValue = Formatter.normalizeValue(row[usedDateCol]);
+            const monthKey = dateValue ? dateValue.slice(0, 7) : 'غير محدد';
+            const amount = Formatter.toNumber(row[valueColumn]) || 0;
+            monthly[monthKey] = (monthly[monthKey] || 0) + amount;
+          });
+          sheets = [{
+            name: 'الحركة الشهرية',
+            rows: Object.entries(monthly).map(([month, total]) => ({ الشهر: month, الإجمالي: total }))
+          }];
+        } else if (reportType === 'unbalanced') {
+          const validation = ValidationService.performAll(this.state.filteredRows, this.state.headers, { debit: debitCol, credit: creditCol });
+          sheets = [{
+            name: 'قيود غير متوازنة',
+            rows: validation.unbalanced.map(item => ({
+              'رقم القيد': item.index,
+              'المدين': item.debit,
+              'الدائن': item.credit,
+              'الفرق': item.diff
+            }))
+          }];
+        } else if (reportType === 'budget_variance') {
+          sheets = [{
+            name: 'الموازنة والانحراف',
+            rows: [{
+              'الموازنة المعتمدة': summary.approvedBudget,
+              'المنصرف الفعلي': summary.actualSpent,
+              'المتبقي': summary.remaining,
+              'الانحراف': summary.deviation,
+              'نسبة التنفيذ %': summary.executionRate
+            }]
+          }];
+        } else {
+          sheets = [
+            { name: 'البيانات', rows: this.state.filteredRows },
+            { name: 'الملخص', rows: [
+              { المؤشر: 'إجمالي السجلات', القيمة: this.state.originalRows.length },
+              { المؤشر: 'السجلات المعروضة', القيمة: this.state.filteredRows.length },
+              { المؤشر: 'إجمالي المدين', القيمة: summary.totalDebit },
+              { المؤشر: 'إجمالي الدائن', القيمة: summary.totalCredit },
+              { المؤشر: 'نسبة التنفيذ %', القيمة: summary.executionRate }
+            ]}
+          ];
+        }
+
+        return {
+          title: titles[reportType] || 'تقرير مالي',
+          sheets,
+          chartIds: chartMap[reportType] || []
+        };
+      },
+
+      /**
+       * Download report as PDF with charts
+       */
+      downloadReportPdf(payload, fileName) {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        let y = 16;
+
+        pdf.setFontSize(14);
+        pdf.text(payload.title, pageWidth - margin, y, { align: 'right' });
+        y += 8;
+
+        pdf.setFontSize(9);
+        pdf.text(`تاريخ الإنشاء: ${new Date().toLocaleString('ar-EG')}`, pageWidth - margin, y, { align: 'right' });
+        y += 8;
+
+        payload.sheets.forEach((sheet, index) => {
+          if (y > pageHeight - 25) {
+            pdf.addPage();
+            y = 16;
+          }
+
+          pdf.setFontSize(11);
+          pdf.text(`- ${sheet.name}`, pageWidth - margin, y, { align: 'right' });
+          y += 6;
+
+          const rowsPreview = (sheet.rows || []).slice(0, 8);
+          rowsPreview.forEach(row => {
+            if (y > pageHeight - 10) {
+              pdf.addPage();
+              y = 16;
+            }
+            const line = Object.entries(row)
+              .map(([k, v]) => `${k}: ${typeof v === 'number' ? Formatter.formatNumber(v) : String(v)}`)
+              .join(' | ')
+              .slice(0, 140);
+            pdf.setFontSize(8);
+            pdf.text(line, pageWidth - margin, y, { align: 'right' });
+            y += 5;
+          });
+
+          if ((sheet.rows || []).length > rowsPreview.length) {
+            pdf.setFontSize(8);
+            pdf.text(`... ${(sheet.rows || []).length - rowsPreview.length} صفوف إضافية`, pageWidth - margin, y, { align: 'right' });
+            y += 6;
+          }
+
+          if (index < payload.sheets.length - 1) y += 2;
+        });
+
+        payload.chartIds.forEach(chartId => {
+          const canvas = document.getElementById(chartId);
+          if (!canvas) return;
+
+          const imageData = canvas.toDataURL('image/png', 1.0);
+          const imgWidth = pageWidth - (margin * 2);
+          const imgHeight = 65;
+
+          if (y + imgHeight > pageHeight - 8) {
+            pdf.addPage();
+            y = 16;
+          }
+
+          pdf.addImage(imageData, 'PNG', margin, y, imgWidth, imgHeight, undefined, 'FAST');
+          y += imgHeight + 6;
+        });
+
+        pdf.save(fileName);
       },
 
       /**
