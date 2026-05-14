@@ -3300,25 +3300,6 @@
           throw new Error('مكتبات تصدير PDF غير متاحة');
         }
 
-        const chartBlocks = payload.chartIds.map(chartId => {
-          const canvas = document.getElementById(chartId);
-          if (!canvas) return '';
-          const imageData = canvas.toDataURL('image/png', 1.0);
-          const titleMap = {
-            timelineChart: 'الرسم البياني التحليلي',
-            categoryPieChart: 'التوزيع النسبي',
-            budgetComparisonChart: 'مقارنة الموازنة بالفعلي',
-            executionRateChart: 'نسبة التنفيذ'
-          };
-          const chartTitle = titleMap[chartId] || 'رسم بياني';
-          return `
-            <div class="chart-block">
-              <h4>${Formatter.escapeHtml(chartTitle)}</h4>
-              <img src="${imageData}" alt="${Formatter.escapeHtml(chartTitle)}" />
-            </div>
-          `;
-        }).join('');
-
         const sectionsHtml = payload.sheets.map(sheet => {
           const rows = (sheet.rows || []).slice(0, 30);
           const keys = rows.length ? Object.keys(rows[0]) : [];
@@ -3365,9 +3346,6 @@
             th { background: #eff6ff; color: #1e3a8a; }
             tr:nth-child(even) td { background: #f8fafc; }
             .more-note { margin-top: 6px; font-size: 12px; color: #64748b; }
-            .chart-block { margin-top: 16px; margin-bottom: 18px; page-break-inside: avoid; }
-            .chart-block h4 { margin: 0 0 8px; font-size: 18px; color: #0f172a; }
-            .chart-block img { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
             .empty { color: #64748b; font-size: 14px; }
           </style>
           <div class="report-header">
@@ -3378,7 +3356,6 @@
             </div>
           </div>
           ${sectionsHtml}
-          ${chartBlocks ? `<section class="report-section"><h3>الرسوم البيانية</h3>${chartBlocks}</section>` : ''}
         `;
 
         document.body.appendChild(reportElement);
@@ -3415,6 +3392,47 @@
             pdf.addPage();
             pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
             heightLeft -= pageHeight;
+          }
+
+          if (payload.chartIds.length) {
+            const chartTitleMap = {
+              timelineChart: 'الرسم البياني التحليلي',
+              categoryPieChart: 'التوزيع النسبي',
+              budgetComparisonChart: 'مقارنة الموازنة بالفعلي',
+              executionRateChart: 'نسبة التنفيذ'
+            };
+
+            payload.chartIds.forEach((chartId) => {
+              const canvas = document.getElementById(chartId);
+              if (!canvas) return;
+
+              const chartData = canvas.toDataURL('image/png', 1.0);
+              const chartRatio = canvas.height / canvas.width;
+              const chartTitle = chartTitleMap[chartId] || 'رسم بياني';
+
+              pdf.addPage();
+
+              const margin = 12;
+              const titleY = 16;
+              const availableWidth = pageWidth - (margin * 2);
+              const maxChartHeight = pageHeight - 34;
+              let chartWidth = availableWidth;
+              let chartHeight = chartWidth * chartRatio;
+
+              if (chartHeight > maxChartHeight) {
+                chartHeight = maxChartHeight;
+                chartWidth = chartHeight / chartRatio;
+              }
+
+              const x = (pageWidth - chartWidth) / 2;
+              const yPos = titleY + 6;
+
+              pdf.setFontSize(13);
+              pdf.text(chartTitle, pageWidth - margin, titleY, { align: 'right' });
+              pdf.setDrawColor(203, 213, 225);
+              pdf.line(margin, 20, pageWidth - margin, 20);
+              pdf.addImage(chartData, 'PNG', x, yPos + 4, chartWidth, chartHeight, undefined, 'FAST');
+            });
           }
 
           pdf.save(fileName);
