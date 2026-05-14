@@ -3288,8 +3288,278 @@
         return {
           title: titles[reportType] || 'تقرير مالي',
           sheets,
-          chartIds: chartMap[reportType] || []
+          chartIds: chartMap[reportType] || [],
+          meta: {
+            fileName: this.state.fileName || 'غير محدد',
+            sheetName: this.state.currentSheet || 'الورقة الحالية',
+            generatedAt: new Date().toLocaleString('ar-EG'),
+            summaryKpis: [
+              { label: 'إجمالي السجلات', value: Formatter.formatNumber(this.state.originalRows.length) },
+              { label: 'السجلات المعروضة', value: Formatter.formatNumber(this.state.filteredRows.length) },
+              { label: 'إجمالي المدين', value: Formatter.formatCurrency(summary.totalDebit) },
+              { label: 'إجمالي الدائن', value: Formatter.formatCurrency(summary.totalCredit) },
+              { label: 'نسبة التنفيذ %', value: Formatter.formatNumber(summary.executionRate) + '%' }
+            ]
+          }
         };
+      },
+
+      /**
+       * Small async helper.
+       */
+      pdfDelay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+
+      /**
+       * Wait until charts are visible and rendered before capture.
+       */
+      async waitForChartsToRender(chartIds = [], timeoutMs = 6000) {
+        const activeTab = document.querySelector('[data-bs-toggle="tab"].active');
+        const activeTarget = activeTab?.getAttribute('data-bs-target') || '#reportsTab';
+        const dashboardButton = document.querySelector('[data-bs-target="#dashboardTab"]');
+
+        if (dashboardButton) {
+          bootstrap.Tab.getOrCreateInstance(dashboardButton).show();
+        }
+
+        this.renderAllCharts();
+        await this.pdfDelay(150);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+          const ready = chartIds.every(id => {
+            const canvas = document.getElementById(id);
+            return !!canvas && canvas.width > 0 && canvas.height > 0 && canvas.getBoundingClientRect().width > 0;
+          });
+          if (ready) break;
+          await this.pdfDelay(120);
+        }
+
+        return { restoreTarget: activeTarget };
+      },
+
+      /**
+       * Capture a DOM element safely at high resolution.
+       */
+      async captureElementSafely(element, options = {}) {
+        if (!element) {
+          throw new Error('تعذر العثور على عنصر التقرير');
+        }
+
+        const rect = element.getBoundingClientRect();
+        if ((rect.width || 0) === 0 || (rect.height || 0) === 0) {
+          throw new Error('عنصر التقرير غير جاهز للالتقاط');
+        }
+
+        await this.pdfDelay(60);
+        return html2canvas(element, {
+          scale: options.scale || 4,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width: element.scrollWidth,
+          height: element.scrollHeight,
+          windowWidth: element.scrollWidth,
+          windowHeight: element.scrollHeight,
+          scrollX: 0,
+          scrollY: 0,
+          imageTimeout: 15000,
+          removeContainer: true
+        });
+      },
+
+      /**
+       * Clone a chart card and preserve canvas pixels.
+       */
+      cloneNodeWithCanvas(sourceNode) {
+        const clone = sourceNode.cloneNode(true);
+        const sourceCanvases = sourceNode.querySelectorAll('canvas');
+        const cloneCanvases = clone.querySelectorAll('canvas');
+
+        sourceCanvases.forEach((sourceCanvas, index) => {
+          const targetCanvas = cloneCanvases[index];
+          if (!targetCanvas) return;
+
+          try {
+            targetCanvas.width = sourceCanvas.width;
+            targetCanvas.height = sourceCanvas.height;
+            const ctx = targetCanvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+              ctx.drawImage(sourceCanvas, 0, 0);
+            }
+          } catch (e) {
+            console.warn('Chart canvas clone failed:', e);
+          }
+        });
+
+        return clone;
+      },
+
+      /**
+       * Create a reusable hidden page element for PDF capture.
+       */
+      createPdfPageElement({ title, subtitle = '', bodyHtml = '' } = {}) {
+        const el = document.createElement('div');
+        el.setAttribute('dir', 'rtl');
+        el.style.position = 'fixed';
+        el.style.left = '-100000px';
+        el.style.top = '0';
+        el.style.width = '1120px';
+        el.style.minHeight = '780px';
+        el.style.background = '#ffffff';
+        el.style.color = '#111827';
+        el.style.padding = '24px';
+        el.style.boxSizing = 'border-box';
+        el.style.fontFamily = 'Tahoma, Arial, sans-serif';
+        el.innerHTML = `
+          <style>
+            .pdf-page { width: 100%; }
+            .pdf-header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 16px; }
+            .pdf-title { margin: 0; font-size: 24px; color: #0f172a; text-align: right; }
+            .pdf-subtitle { margin-top: 6px; font-size: 13px; color: #475569; text-align: right; }
+            .pdf-body { display: flex; flex-direction: column; gap: 16px; }
+            .pdf-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+            .pdf-summary-card { border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; padding: 10px 12px; text-align: right; }
+            .pdf-summary-card .label { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+            .pdf-summary-card .value { font-size: 16px; color: #0f172a; font-weight: 700; }
+            .pdf-section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #ffffff; page-break-inside: avoid; }
+            .pdf-section h2 { margin: 0 0 10px; font-size: 18px; color: #1e3a8a; text-align: right; }
+            .pdf-empty { border: 1px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; color: #64748b; padding: 18px; text-align: center; }
+            .pdf-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+            .pdf-table th, .pdf-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .pdf-table th { background: #eff6ff; color: #1e3a8a; font-weight: 700; }
+            .pdf-table tbody tr:nth-child(even) td { background: #f8fafc; }
+            .pdf-note { margin-top: 8px; font-size: 11px; color: #64748b; text-align: right; }
+            .pdf-chart-box { border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; background: #ffffff; }
+            .pdf-chart-box h3 { margin: 0 0 10px; font-size: 18px; color: #1e3a8a; text-align: right; }
+            .pdf-chart-box img { width: 100%; display: block; height: auto; }
+          </style>
+          <div class="pdf-page">
+            <div class="pdf-header">
+              <h1 class="pdf-title">${Formatter.escapeHtml(title || '')}</h1>
+              <div class="pdf-subtitle">${Formatter.escapeHtml(subtitle || '')}</div>
+            </div>
+            <div class="pdf-body">${bodyHtml}</div>
+          </div>
+        `;
+        document.body.appendChild(el);
+        return el;
+      },
+
+      /**
+       * Add a captured canvas to the PDF, centered and scaled to fit.
+       */
+      addCapturedCanvasToPdf(pdf, canvas) {
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const availableWidth = pageWidth - margin * 2;
+        const availableHeight = pageHeight - margin * 2;
+
+        const ratio = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+        const drawWidth = canvas.width * ratio;
+        const drawHeight = canvas.height * ratio;
+        const x = (pageWidth - drawWidth) / 2;
+        const y = (pageHeight - drawHeight) / 2;
+
+        const image = canvas.toDataURL('image/jpeg', 0.97);
+        pdf.addImage(image, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
+      },
+
+      /**
+       * Add page numbers and a small footer to every page.
+       */
+      addFooterWithPageNumbers(pdf) {
+        const totalPages = pdf.getNumberOfPages();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+          pdf.setPage(pageNumber);
+          pdf.setDrawColor(203, 213, 225);
+          pdf.line(10, pageHeight - 12, pageWidth - 10, pageHeight - 12);
+          pdf.setFontSize(9);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(`Page ${pageNumber} / ${totalPages}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
+        }
+      },
+
+      /**
+       * Add a single section/page to the PDF from an HTML element.
+       */
+      async addSectionToPDF(pdf, element, options = {}) {
+        const canvas = await this.captureElementSafely(element, options.capture || {});
+        this.addCapturedCanvasToPdf(pdf, canvas);
+      },
+
+      /**
+       * Add a paginated table to the PDF without clipping or blank pages.
+       */
+      async addPaginatedTableToPDF(pdf, sectionTitle, rows = [], headers = [], options = {}) {
+        const rowsPerPage = options.rowsPerPage || this.getRecommendedRowsPerPage(headers.length);
+
+        if (!rows.length || !headers.length) {
+          const emptyPage = this.createPdfPageElement({
+            title: sectionTitle,
+            subtitle: options.subtitle || '',
+            bodyHtml: `<div class="pdf-empty">${Formatter.escapeHtml(options.emptyMessage || 'لا توجد بيانات متاحة لهذا القسم')}</div>`
+          });
+
+          try {
+            const canvas = await this.captureElementSafely(emptyPage, { scale: 4 });
+            this.addCapturedCanvasToPdf(pdf, canvas);
+          } finally {
+            emptyPage.remove();
+          }
+
+          return;
+        }
+
+        for (let index = 0; index < rows.length; index += rowsPerPage) {
+          const chunk = rows.slice(index, index + rowsPerPage);
+          const head = headers.map(key => `<th>${Formatter.escapeHtml(key)}</th>`).join('');
+          const body = chunk.map(row => {
+            return `<tr>${headers.map(key => {
+              const value = row?.[key];
+              const displayValue = typeof value === 'number' ? Formatter.formatNumber(value) : Formatter.normalizeValue(value);
+              return `<td title="${Formatter.escapeHtml(displayValue)}">${Formatter.escapeHtml(displayValue)}</td>`;
+            }).join('')}</tr>`;
+          }).join('');
+
+          const page = this.createPdfPageElement({
+            title: sectionTitle,
+            subtitle: options.subtitle || '',
+            bodyHtml: `
+              <div class="pdf-section">
+                <h2>${Formatter.escapeHtml(sectionTitle)}</h2>
+                <table class="pdf-table">
+                  <thead><tr>${head}</tr></thead>
+                  <tbody>${body}</tbody>
+                </table>
+                <div class="pdf-note">عرض ${Formatter.formatNumber(index + 1)} - ${Formatter.formatNumber(index + chunk.length)} من ${Formatter.formatNumber(rows.length)} صف.</div>
+              </div>
+            `
+          });
+
+          try {
+            const canvas = await this.captureElementSafely(page, { scale: 4 });
+            this.addCapturedCanvasToPdf(pdf, canvas);
+          } finally {
+            page.remove();
+          }
+        }
+      },
+
+      /**
+       * Recommended rows per PDF page based on table width.
+       */
+      getRecommendedRowsPerPage(columnCount) {
+        if (columnCount >= 12) return 7;
+        if (columnCount >= 9) return 8;
+        if (columnCount >= 6) return 10;
+        return 12;
       },
 
       /**
@@ -3299,189 +3569,156 @@
         if (!window.jspdf || !window.html2canvas) {
           throw new Error('مكتبات تصدير PDF غير متاحة');
         }
+        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+        const previousTab = document.querySelector('[data-bs-toggle="tab"].active')?.getAttribute('data-bs-target') || '#reportsTab';
+        const reportMeta = [
+          `اسم الملف: ${payload.meta.fileName}`,
+          `اسم الورقة: ${payload.meta.sheetName}`,
+          `تاريخ الإنشاء: ${payload.meta.generatedAt}`
+        ].join('   |   ');
 
-        const sectionsHtml = payload.sheets.map(sheet => {
-          const rows = (sheet.rows || []).slice(0, 30);
-          const keys = rows.length ? Object.keys(rows[0]) : [];
-          const head = keys.map(key => `<th>${Formatter.escapeHtml(key)}</th>`).join('');
-          const body = rows.map(row => {
-            return `<tr>${keys.map(key => {
-              const value = row[key];
-              const displayValue = typeof value === 'number' ? Formatter.formatNumber(value) : Formatter.normalizeValue(value);
-              return `<td>${Formatter.escapeHtml(displayValue)}</td>`;
-            }).join('')}</tr>`;
-          }).join('');
-          const more = (sheet.rows || []).length > rows.length
-            ? `<div class="more-note">تم عرض ${Formatter.formatNumber(rows.length)} من ${Formatter.formatNumber((sheet.rows || []).length)} صف.</div>`
-            : '';
-
-          return `
-            <section class="report-section">
-              <h3>${Formatter.escapeHtml(sheet.name)}</h3>
-              ${keys.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` : '<div class="empty">لا توجد بيانات</div>'}
-              ${more}
-            </section>
-          `;
-        }).join('');
-
-        const reportElement = document.createElement('div');
-        reportElement.setAttribute('dir', 'rtl');
-        reportElement.style.position = 'fixed';
-        reportElement.style.left = '-100000px';
-        reportElement.style.top = '0';
-        reportElement.style.width = '1120px';
-        reportElement.style.background = '#ffffff';
-        reportElement.style.color = '#111827';
-        reportElement.style.padding = '24px';
-        reportElement.style.fontFamily = 'Tahoma, Arial, sans-serif';
-        reportElement.innerHTML = `
-          <style>
-            .report-header { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
-            .report-header h1 { margin: 0 0 8px; font-size: 28px; color: #0f172a; }
-            .report-meta { font-size: 14px; color: #475569; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-            .report-section { margin-bottom: 20px; page-break-inside: avoid; }
-            .report-section h3 { margin: 0 0 10px; font-size: 20px; color: #1e3a8a; }
-            table { width: 100%; border-collapse: collapse; font-size: 13px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; vertical-align: top; }
-            th { background: #eff6ff; color: #1e3a8a; }
-            tr:nth-child(even) td { background: #f8fafc; }
-            .more-note { margin-top: 6px; font-size: 12px; color: #64748b; }
-            .empty { color: #64748b; font-size: 14px; }
-          </style>
-          <div class="report-header">
-            <h1>${Formatter.escapeHtml(payload.title)}</h1>
-            <div class="report-meta">
-              <div>وزارة المالية - نظام التحليل المالي الحكومي</div>
-              <div>تاريخ الإنشاء: ${Formatter.escapeHtml(new Date().toLocaleString('ar-EG'))}</div>
-            </div>
-          </div>
-          ${sectionsHtml}
-        `;
-
-        document.body.appendChild(reportElement);
-
-        const buildChartPageElement = (chartTitle, chartDataUrl) => {
-          const el = document.createElement('div');
-          el.setAttribute('dir', 'rtl');
-          el.style.position = 'fixed';
-          el.style.left = '-100000px';
-          el.style.top = '0';
-          el.style.width = '1120px';
-          el.style.minHeight = '780px';
-          el.style.background = '#ffffff';
-          el.style.color = '#111827';
-          el.style.padding = '24px';
-          el.style.fontFamily = 'Tahoma, Arial, sans-serif';
-          el.innerHTML = `
-            <style>
-              .chart-page-header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 16px; }
-              .chart-page-header h1 { margin: 0; font-size: 24px; color: #0f172a; }
-              .chart-page-header p { margin: 6px 0 0; font-size: 13px; color: #475569; }
-              .chart-frame { margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; min-height: 620px; display: flex; flex-direction: column; }
-              .chart-frame h2 { margin: 0 0 10px; font-size: 18px; color: #1e3a8a; }
-              .chart-frame img { width: 100%; flex: 1; object-fit: contain; display: block; }
-            </style>
-            <div class="chart-page-header">
-              <h1>${Formatter.escapeHtml(payload.title)}</h1>
-              <p>الرسوم البيانية - ${Formatter.escapeHtml(new Date().toLocaleString('ar-EG'))}</p>
-            </div>
-            <div class="chart-frame">
-              <h2>${Formatter.escapeHtml(chartTitle)}</h2>
-              <img src="${chartDataUrl}" alt="${Formatter.escapeHtml(chartTitle)}" />
-            </div>
-          `;
-          document.body.appendChild(el);
-          return el;
-        };
+        let pdfSections = [];
 
         try {
-          await new Promise(resolve => requestAnimationFrame(resolve));
+          await this.waitForChartsToRender(payload.chartIds);
+          await this.pdfDelay(150);
 
-          const canvas = await html2canvas(reportElement, {
-            scale: 3,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            width: reportElement.scrollWidth,
-            height: reportElement.scrollHeight,
-            windowWidth: reportElement.scrollWidth,
-            windowHeight: reportElement.scrollHeight
+          const headerPage = this.createPdfPageElement({
+            title: payload.title,
+            subtitle: reportMeta,
+            bodyHtml: `
+              <div class="pdf-section">
+                <h2>${Formatter.escapeHtml('الملخص التنفيذي')}</h2>
+                <div class="pdf-summary-grid">
+                  ${payload.meta.summaryKpis.map(kpi => `
+                    <div class="pdf-summary-card">
+                      <div class="label">${Formatter.escapeHtml(kpi.label)}</div>
+                      <div class="value">${Formatter.escapeHtml(kpi.value)}</div>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="pdf-note">تم إعداد هذا التقرير تلقائيًا وفق البيانات المتاحة وقت التصدير.</div>
+              </div>
+            `
           });
+          pdfSections.push(headerPage);
 
-          const imageData = canvas.toDataURL('image/jpeg', 0.95);
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          const imageWidth = pageWidth;
-          const imageHeight = (canvas.height * imageWidth) / canvas.width;
+          for (const sheet of payload.sheets) {
+            const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+            const headers = rows.length ? Object.keys(rows[0]) : [];
 
-          let heightLeft = imageHeight;
-          let y = 0;
-
-          pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
-          heightLeft -= pageHeight;
-
-          while (heightLeft > 0) {
-            y = heightLeft - imageHeight;
-            pdf.addPage();
-            pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
-            heightLeft -= pageHeight;
-          }
-
-          if (payload.chartIds.length) {
-            const chartTitleMap = {
-              timelineChart: 'الرسم البياني التحليلي',
-              categoryPieChart: 'التوزيع النسبي',
-              budgetComparisonChart: 'مقارنة الموازنة بالفعلي',
-              executionRateChart: 'نسبة التنفيذ'
-            };
-
-            for (const chartId of payload.chartIds) {
-              const canvas = document.getElementById(chartId);
-              if (!canvas) continue;
-
-              const chartData = canvas.toDataURL('image/png', 1.0);
-              const chartTitle = chartTitleMap[chartId] || 'رسم بياني';
-
-              const chartPage = buildChartPageElement(chartTitle, chartData);
-              await new Promise(resolve => requestAnimationFrame(resolve));
-
-              const chartCanvas = await html2canvas(chartPage, {
-                scale: 4,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                width: chartPage.scrollWidth,
-                height: chartPage.scrollHeight,
-                windowWidth: chartPage.scrollWidth,
-                windowHeight: chartPage.scrollHeight
+            if (!rows.length || !headers.length) {
+              const emptyPage = this.createPdfPageElement({
+                title: sheet.name,
+                subtitle: reportMeta,
+                bodyHtml: `<div class="pdf-empty">لا توجد بيانات متاحة لهذا القسم</div>`
               });
+              pdfSections.push(emptyPage);
+              continue;
+            }
 
-              chartPage.remove();
+            const rowsPerPage = this.getRecommendedRowsPerPage(headers.length);
+            for (let index = 0; index < rows.length; index += rowsPerPage) {
+              const chunk = rows.slice(index, index + rowsPerPage);
+              const head = headers.map(key => `<th>${Formatter.escapeHtml(key)}</th>`).join('');
+              const body = chunk.map(row => {
+                return `<tr>${headers.map(key => {
+                  const value = row?.[key];
+                  const displayValue = typeof value === 'number' ? Formatter.formatNumber(value) : Formatter.normalizeValue(value);
+                  return `<td title="${Formatter.escapeHtml(displayValue)}">${Formatter.escapeHtml(displayValue)}</td>`;
+                }).join('')}</tr>`;
+              }).join('');
 
-              const chartImage = chartCanvas.toDataURL('image/jpeg', 0.98);
-              pdf.addPage();
-
-              const margin = 8;
-              const availWidth = pageWidth - margin * 2;
-              const availHeight = pageHeight - margin * 2;
-              const imgRatio = chartCanvas.height / chartCanvas.width;
-              let drawWidth = availWidth;
-              let drawHeight = drawWidth * imgRatio;
-
-              if (drawHeight > availHeight) {
-                drawHeight = availHeight;
-                drawWidth = drawHeight / imgRatio;
-              }
-
-              const x = (pageWidth - drawWidth) / 2;
-              const y = (pageHeight - drawHeight) / 2;
-              pdf.addImage(chartImage, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
+              const page = this.createPdfPageElement({
+                title: sheet.name,
+                subtitle: reportMeta,
+                bodyHtml: `
+                  <div class="pdf-section">
+                    <h2>${Formatter.escapeHtml(sheet.name)}</h2>
+                    <table class="pdf-table">
+                      <thead><tr>${head}</tr></thead>
+                      <tbody>${body}</tbody>
+                    </table>
+                    <div class="pdf-note">عرض ${Formatter.formatNumber(index + 1)} - ${Formatter.formatNumber(index + chunk.length)} من ${Formatter.formatNumber(rows.length)} صف.</div>
+                  </div>
+                `
+              });
+              pdfSections.push(page);
             }
           }
 
+          const chartTitleMap = {
+            timelineChart: 'الرسم البياني التحليلي',
+            categoryPieChart: 'التوزيع النسبي',
+            budgetComparisonChart: 'مقارنة الموازنة بالفعلي',
+            executionRateChart: 'نسبة التنفيذ'
+          };
+
+          for (const chartId of payload.chartIds) {
+            const chartCanvas = document.getElementById(chartId);
+            const chartTitle = chartTitleMap[chartId] || 'رسم بياني';
+            const chartInstance = ChartManager.charts.get(chartId);
+            const hasData = !!(chartInstance && chartInstance.data && chartInstance.data.datasets && chartInstance.data.datasets.some(ds => Array.isArray(ds.data) && ds.data.length));
+
+            if (!chartCanvas) {
+              pdfSections.push(this.createPdfPageElement({
+                title: chartTitle,
+                subtitle: reportMeta,
+                bodyHtml: `<div class="pdf-empty">لا يمكن العثور على هذا الرسم البياني</div>`
+              }));
+              continue;
+            }
+
+            if (!hasData) {
+              pdfSections.push(this.createPdfPageElement({
+                title: chartTitle,
+                subtitle: reportMeta,
+                bodyHtml: `<div class="pdf-empty">لا توجد بيانات متاحة لهذا الرسم البياني</div>`
+              }));
+              continue;
+            }
+
+            const chartCard = chartCanvas.closest('.chart-card') || chartCanvas.parentElement;
+            if (!chartCard) {
+              pdfSections.push(this.createPdfPageElement({
+                title: chartTitle,
+                subtitle: reportMeta,
+                bodyHtml: `<div class="pdf-empty">تعذر تجهيز بطاقة الرسم البياني</div>`
+              }));
+              continue;
+            }
+
+            const clone = this.cloneNodeWithCanvas(chartCard);
+            const page = this.createPdfPageElement({
+              title: chartTitle,
+              subtitle: reportMeta,
+              bodyHtml: `
+                <div class="pdf-chart-box">
+                  <h3>${Formatter.escapeHtml(chartTitle)}</h3>
+                  ${clone.outerHTML}
+                </div>
+              `
+            });
+            pdfSections.push(page);
+          }
+
+          for (const section of pdfSections) {
+            const canvas = await this.captureElementSafely(section, { scale: 4 });
+            this.addCapturedCanvasToPdf(pdf, canvas);
+            section.remove();
+          }
+
+          this.addFooterWithPageNumbers(pdf);
           pdf.save(fileName);
         } finally {
-          reportElement.remove();
+          pdfSections.forEach(section => section.remove());
+          const restoreButton = previousTab ? document.querySelector(`[data-bs-target="${previousTab}"]`) : null;
+          if (restoreButton) {
+            bootstrap.Tab.getOrCreateInstance(restoreButton).show();
+            if (previousTab === '#reportsTab') {
+              this.renderAllCharts();
+            }
+          }
         }
       },
 
