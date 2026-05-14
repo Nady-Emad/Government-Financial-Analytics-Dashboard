@@ -10,6 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root {
       --bg-primary: #f8f9fa;
@@ -721,8 +723,8 @@
                     <p class="text-muted mb-0">قم برفع ملف Excel أو CSV يحتوي على البيانات المالية (حد أقصى 100 ميجا)</p>
                   </div>
                   <div class="d-flex gap-2 flex-wrap">
-                    <button class="btn btn-outline-primary" id="loadTemplateBtn">
-                      <i class="bi bi-file-earmark-spreadsheet"></i> تحميل قالب
+                    <button class="btn btn-outline-primary" id="loadTemplateBtn" title="تنزيل لوحة المؤشرات كاملة PDF">
+                      <i class="bi bi-filetype-pdf"></i> تنزيل الداشبورد PDF
                     </button>
                     <button class="btn btn-outline-secondary" id="themeToggleBtn">
                       <i class="bi bi-moon-stars"></i> <span id="themeToggleText">الوضع الداكن</span>
@@ -1881,6 +1883,11 @@
           this.addAuditLog('تغيير السمة', `تم التبديل إلى ${newTheme === 'dark' ? 'الوضع الداكن' : 'الوضع الفاتح'}`);
         });
 
+        // Download full dashboard as PDF
+        document.getElementById('loadTemplateBtn').addEventListener('click', () => {
+          this.downloadDashboardPdf();
+        });
+
         // Tab titles
         document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
           tab.addEventListener('shown.bs.tab', (e) => {
@@ -2729,6 +2736,65 @@
       printTable() {
         window.print();
         this.addAuditLog('طباعة', 'تم طباعة البيانات');
+      },
+
+      /**
+       * Download dashboard tab as multipage PDF
+       */
+      async downloadDashboardPdf() {
+        try {
+          const dashboardButton = document.querySelector('[data-bs-target="#dashboardTab"]');
+          if (dashboardButton) {
+            bootstrap.Tab.getOrCreateInstance(dashboardButton).show();
+          }
+
+          this.showLoading('جاري تجهيز ملف PDF للوحة المؤشرات...');
+
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          await new Promise(resolve => setTimeout(resolve, 250));
+
+          const dashboardElement = document.getElementById('dashboardTab');
+          if (!dashboardElement) {
+            throw new Error('تعذر الوصول إلى لوحة المؤشرات');
+          }
+
+          const canvas = await html2canvas(dashboardElement, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            windowWidth: document.documentElement.scrollWidth
+          });
+
+          const imageData = canvas.toDataURL('image/jpeg', 0.95);
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const imageWidth = pageWidth;
+          const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+          let heightLeft = imageHeight;
+          let y = 0;
+
+          pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
+
+          while (heightLeft > 0) {
+            y = heightLeft - imageHeight;
+            pdf.addPage();
+            pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
+            heightLeft -= pageHeight;
+          }
+
+          pdf.save(`dashboard_${Date.now()}.pdf`);
+          this.addAuditLog('تنزيل PDF', 'تم تنزيل لوحة المؤشرات كاملة بصيغة PDF');
+          this.showToast('تم تنزيل الداشبورد PDF بنجاح', 'success');
+        } catch (e) {
+          ErrorHandler.log(e);
+        } finally {
+          this.hideLoading();
+        }
       },
 
       /**
