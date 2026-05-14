@@ -41,6 +41,93 @@
       --border-color: #2a3556;
       --shadow: 0 2px 8px rgba(0,0,0,0.3);
       --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+      color-scheme: dark;
+    }
+
+    body.dark-mode .text-muted {
+      color: var(--text-secondary) !important;
+    }
+
+    body.dark-mode .text-dark {
+      color: var(--text-primary) !important;
+    }
+
+    body.dark-mode .bg-light,
+    body.dark-mode .bg-light-subtle {
+      background: var(--bg-tertiary) !important;
+      color: var(--text-primary) !important;
+      border-color: var(--border-color) !important;
+    }
+
+    body.dark-mode .alert {
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .alert-info {
+      background: rgba(13, 202, 240, 0.16);
+      border-color: rgba(13, 202, 240, 0.35);
+      color: #c3f4ff;
+    }
+
+    body.dark-mode .alert-warning {
+      background: rgba(255, 193, 7, 0.14);
+      border-color: rgba(255, 193, 7, 0.35);
+      color: #ffe8a6;
+    }
+
+    body.dark-mode .alert-danger {
+      background: rgba(220, 53, 69, 0.16);
+      border-color: rgba(220, 53, 69, 0.35);
+      color: #ffd1d6;
+    }
+
+    body.dark-mode .table {
+      --bs-table-bg: var(--bg-secondary);
+      --bs-table-color: var(--text-primary);
+      --bs-table-striped-bg: #162041;
+      --bs-table-striped-color: var(--text-primary);
+      --bs-table-hover-bg: #202b50;
+      --bs-table-hover-color: var(--text-primary);
+      --bs-table-border-color: var(--border-color);
+    }
+
+    body.dark-mode .table thead th {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .form-control,
+    body.dark-mode .form-select,
+    body.dark-mode .form-check-input {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    body.dark-mode .form-control::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.8;
+    }
+
+    body.dark-mode .form-select option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    body.dark-mode .btn-outline-secondary {
+      color: #c8d0e5;
+      border-color: #5b678d;
+    }
+
+    body.dark-mode .btn-outline-secondary:hover {
+      color: #ffffff;
+      background: #35416b;
+      border-color: #6d7cab;
+    }
+
+    body.dark-mode .accordion-button::after {
+      filter: brightness(0) invert(1);
     }
 
     * {
@@ -607,6 +694,15 @@
       gap: 0.75rem;
     }
 
+    .error-alert-floating {
+      display: none;
+      position: fixed;
+      top: 90px;
+      right: 20px;
+      z-index: 1001;
+      max-width: 400px;
+    }
+
     .error-alert i {
       font-size: 1.25rem;
     }
@@ -637,7 +733,7 @@
   <div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer"></div>
 
   <!-- Error Alert -->
-  <div id="errorAlert" class="error-alert" style="display: none; position: fixed; top: 90px; right: 20px; z-index: 1001; max-width: 400px;">
+  <div id="errorAlert" class="error-alert error-alert-floating">
     <i class="bi bi-exclamation-circle"></i>
     <div>
       <strong>خطأ:</strong>
@@ -3082,7 +3178,7 @@
       /**
        * Generate reports
        */
-      generateReport(reportType, format = 'excel') {
+      async generateReport(reportType, format = 'excel') {
         if (this.state.filteredRows.length === 0) {
           this.showToast('لا توجد بيانات لإنشاء التقرير', 'warning');
           return;
@@ -3090,24 +3186,22 @@
 
         this.showLoading('جاري إنشاء التقرير...');
 
-        setTimeout(() => {
-          try {
-            const payload = this.buildReportPayload(reportType);
+        try {
+          const payload = this.buildReportPayload(reportType);
 
-            if (format === 'pdf') {
-              this.downloadReportPdf(payload, `تقرير_${reportType}_${Date.now()}.pdf`);
-            } else {
-              this.downloadWorkbook(payload.sheets, `تقرير_${reportType}_${Date.now()}.xlsx`);
-            }
-
-            this.hideLoading();
-            this.showToast(`تم تنزيل التقرير بصيغة ${format.toUpperCase()} بنجاح`, 'success');
-            this.addAuditLog('إنشاء تقرير', `تم تنزيل تقرير: ${reportType} (${format.toUpperCase()})`);
-          } catch (e) {
-            ErrorHandler.log(e);
-            this.hideLoading();
+          if (format === 'pdf') {
+            await this.downloadReportPdf(payload, `تقرير_${reportType}_${Date.now()}.pdf`);
+          } else {
+            this.downloadWorkbook(payload.sheets, `تقرير_${reportType}_${Date.now()}.xlsx`);
           }
-        }, 300);
+
+          this.showToast(`تم تنزيل التقرير بصيغة ${format.toUpperCase()} بنجاح`, 'success');
+          this.addAuditLog('إنشاء تقرير', `تم تنزيل تقرير: ${reportType} (${format.toUpperCase()})`);
+        } catch (e) {
+          ErrorHandler.log(e);
+        } finally {
+          this.hideLoading();
+        }
       },
 
       /**
@@ -3201,74 +3295,132 @@
       /**
        * Download report as PDF with charts
        */
-      downloadReportPdf(payload, fileName) {
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        let y = 16;
+      async downloadReportPdf(payload, fileName) {
+        if (!window.jspdf || !window.html2canvas) {
+          throw new Error('مكتبات تصدير PDF غير متاحة');
+        }
 
-        pdf.setFontSize(14);
-        pdf.text(payload.title, pageWidth - margin, y, { align: 'right' });
-        y += 8;
+        const chartBlocks = payload.chartIds.map(chartId => {
+          const canvas = document.getElementById(chartId);
+          if (!canvas) return '';
+          const imageData = canvas.toDataURL('image/png', 1.0);
+          const titleMap = {
+            timelineChart: 'الرسم البياني التحليلي',
+            categoryPieChart: 'التوزيع النسبي',
+            budgetComparisonChart: 'مقارنة الموازنة بالفعلي',
+            executionRateChart: 'نسبة التنفيذ'
+          };
+          const chartTitle = titleMap[chartId] || 'رسم بياني';
+          return `
+            <div class="chart-block">
+              <h4>${Formatter.escapeHtml(chartTitle)}</h4>
+              <img src="${imageData}" alt="${Formatter.escapeHtml(chartTitle)}" />
+            </div>
+          `;
+        }).join('');
 
-        pdf.setFontSize(9);
-        pdf.text(`تاريخ الإنشاء: ${new Date().toLocaleString('ar-EG')}`, pageWidth - margin, y, { align: 'right' });
-        y += 8;
+        const sectionsHtml = payload.sheets.map(sheet => {
+          const rows = (sheet.rows || []).slice(0, 30);
+          const keys = rows.length ? Object.keys(rows[0]) : [];
+          const head = keys.map(key => `<th>${Formatter.escapeHtml(key)}</th>`).join('');
+          const body = rows.map(row => {
+            return `<tr>${keys.map(key => {
+              const value = row[key];
+              const displayValue = typeof value === 'number' ? Formatter.formatNumber(value) : Formatter.normalizeValue(value);
+              return `<td>${Formatter.escapeHtml(displayValue)}</td>`;
+            }).join('')}</tr>`;
+          }).join('');
+          const more = (sheet.rows || []).length > rows.length
+            ? `<div class="more-note">تم عرض ${Formatter.formatNumber(rows.length)} من ${Formatter.formatNumber((sheet.rows || []).length)} صف.</div>`
+            : '';
 
-        payload.sheets.forEach((sheet, index) => {
-          if (y > pageHeight - 25) {
-            pdf.addPage();
-            y = 16;
-          }
+          return `
+            <section class="report-section">
+              <h3>${Formatter.escapeHtml(sheet.name)}</h3>
+              ${keys.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` : '<div class="empty">لا توجد بيانات</div>'}
+              ${more}
+            </section>
+          `;
+        }).join('');
 
-          pdf.setFontSize(11);
-          pdf.text(`- ${sheet.name}`, pageWidth - margin, y, { align: 'right' });
-          y += 6;
+        const reportElement = document.createElement('div');
+        reportElement.setAttribute('dir', 'rtl');
+        reportElement.style.position = 'fixed';
+        reportElement.style.left = '-100000px';
+        reportElement.style.top = '0';
+        reportElement.style.width = '1120px';
+        reportElement.style.background = '#ffffff';
+        reportElement.style.color = '#111827';
+        reportElement.style.padding = '24px';
+        reportElement.style.fontFamily = 'Tahoma, Arial, sans-serif';
+        reportElement.innerHTML = `
+          <style>
+            .report-header { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
+            .report-header h1 { margin: 0 0 8px; font-size: 28px; color: #0f172a; }
+            .report-meta { font-size: 14px; color: #475569; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+            .report-section { margin-bottom: 20px; page-break-inside: avoid; }
+            .report-section h3 { margin: 0 0 10px; font-size: 20px; color: #1e3a8a; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; vertical-align: top; }
+            th { background: #eff6ff; color: #1e3a8a; }
+            tr:nth-child(even) td { background: #f8fafc; }
+            .more-note { margin-top: 6px; font-size: 12px; color: #64748b; }
+            .chart-block { margin-top: 16px; margin-bottom: 18px; page-break-inside: avoid; }
+            .chart-block h4 { margin: 0 0 8px; font-size: 18px; color: #0f172a; }
+            .chart-block img { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+            .empty { color: #64748b; font-size: 14px; }
+          </style>
+          <div class="report-header">
+            <h1>${Formatter.escapeHtml(payload.title)}</h1>
+            <div class="report-meta">
+              <div>وزارة المالية - نظام التحليل المالي الحكومي</div>
+              <div>تاريخ الإنشاء: ${Formatter.escapeHtml(new Date().toLocaleString('ar-EG'))}</div>
+            </div>
+          </div>
+          ${sectionsHtml}
+          ${chartBlocks ? `<section class="report-section"><h3>الرسوم البيانية</h3>${chartBlocks}</section>` : ''}
+        `;
 
-          const rowsPreview = (sheet.rows || []).slice(0, 8);
-          rowsPreview.forEach(row => {
-            if (y > pageHeight - 10) {
-              pdf.addPage();
-              y = 16;
-            }
-            const line = Object.entries(row)
-              .map(([k, v]) => `${k}: ${typeof v === 'number' ? Formatter.formatNumber(v) : String(v)}`)
-              .join(' | ')
-              .slice(0, 140);
-            pdf.setFontSize(8);
-            pdf.text(line, pageWidth - margin, y, { align: 'right' });
-            y += 5;
+        document.body.appendChild(reportElement);
+
+        try {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+
+          const canvas = await html2canvas(reportElement, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            width: reportElement.scrollWidth,
+            height: reportElement.scrollHeight,
+            windowWidth: reportElement.scrollWidth,
+            windowHeight: reportElement.scrollHeight
           });
 
-          if ((sheet.rows || []).length > rowsPreview.length) {
-            pdf.setFontSize(8);
-            pdf.text(`... ${(sheet.rows || []).length - rowsPreview.length} صفوف إضافية`, pageWidth - margin, y, { align: 'right' });
-            y += 6;
-          }
+          const imageData = canvas.toDataURL('image/jpeg', 0.95);
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const imageWidth = pageWidth;
+          const imageHeight = (canvas.height * imageWidth) / canvas.width;
 
-          if (index < payload.sheets.length - 1) y += 2;
-        });
+          let heightLeft = imageHeight;
+          let y = 0;
 
-        payload.chartIds.forEach(chartId => {
-          const canvas = document.getElementById(chartId);
-          if (!canvas) return;
+          pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
 
-          const imageData = canvas.toDataURL('image/png', 1.0);
-          const imgWidth = pageWidth - (margin * 2);
-          const imgHeight = 65;
-
-          if (y + imgHeight > pageHeight - 8) {
+          while (heightLeft > 0) {
+            y = heightLeft - imageHeight;
             pdf.addPage();
-            y = 16;
+            pdf.addImage(imageData, 'JPEG', 0, y, imageWidth, imageHeight, undefined, 'FAST');
+            heightLeft -= pageHeight;
           }
 
-          pdf.addImage(imageData, 'PNG', margin, y, imgWidth, imgHeight, undefined, 'FAST');
-          y += imgHeight + 6;
-        });
-
-        pdf.save(fileName);
+          pdf.save(fileName);
+        } finally {
+          reportElement.remove();
+        }
       },
 
       /**
