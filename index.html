@@ -610,6 +610,18 @@
     .error-alert i {
       font-size: 1.25rem;
     }
+
+    .alert-details-list {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+      padding-right: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .alert-details-list li {
+      margin-bottom: 0.25rem;
+    }
   </style>
 </head>
 <body>
@@ -795,6 +807,44 @@
                     <select class="form-select" id="valueColumn" aria-label="عمود القيمة">
                       <option value="">اختر العمود</option>
                     </select>
+                  </div>
+                  <div class="col-12">
+                    <div class="border rounded p-3 bg-light-subtle">
+                      <div class="fw-bold mb-2"><i class="bi bi-sliders"></i> التحديد اليدوي للأعمدة المالية</div>
+                      <div class="small text-muted mb-3">يمكنك تحديد الأعمدة المهمة يدويًا إذا لم يتعرف النظام عليها تلقائيًا.</div>
+                      <div class="row g-2">
+                        <div class="col-md-4">
+                          <label for="debitColumn" class="form-label">عمود المدين</label>
+                          <select class="form-select" id="debitColumn" aria-label="عمود المدين">
+                            <option value="">تلقائي</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <label for="creditColumn" class="form-label">عمود الدائن</label>
+                          <select class="form-select" id="creditColumn" aria-label="عمود الدائن">
+                            <option value="">تلقائي</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <label for="amountColumn" class="form-label">عمود المبلغ</label>
+                          <select class="form-select" id="amountColumn" aria-label="عمود المبلغ">
+                            <option value="">تلقائي</option>
+                          </select>
+                        </div>
+                        <div class="col-md-6">
+                          <label for="dateColumn" class="form-label">عمود التاريخ</label>
+                          <select class="form-select" id="dateColumn" aria-label="عمود التاريخ">
+                            <option value="">تلقائي</option>
+                          </select>
+                        </div>
+                        <div class="col-md-6">
+                          <label for="categoryColumnManual" class="form-label">عمود التصنيف</label>
+                          <select class="form-select" id="categoryColumnManual" aria-label="عمود التصنيف اليدوي">
+                            <option value="">تلقائي</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1793,10 +1843,28 @@
         });
 
         // Column selectors
-        ['categoryColumn', 'valueColumn'].forEach(id => {
+        ['categoryColumn', 'valueColumn', 'debitColumn', 'creditColumn', 'amountColumn', 'dateColumn', 'categoryColumnManual'].forEach(id => {
           document.getElementById(id).addEventListener('change', () => {
+            const manualCategory = document.getElementById('categoryColumnManual').value;
+            if (manualCategory) {
+              this.state.financialColumns.category = manualCategory;
+              document.getElementById('categoryColumn').value = manualCategory;
+            }
+
+            this.state.financialColumns.debit = document.getElementById('debitColumn').value || this.state.financialColumns.debit;
+            this.state.financialColumns.credit = document.getElementById('creditColumn').value || this.state.financialColumns.credit;
+            this.state.financialColumns.amount = document.getElementById('amountColumn').value || this.state.financialColumns.amount;
+            this.state.financialColumns.date = document.getElementById('dateColumn').value || this.state.financialColumns.date;
+
+            const valueColumn = document.getElementById('valueColumn').value;
+            if (valueColumn) {
+              this.state.financialColumns.amount = valueColumn;
+            }
+
+            this.updateKPIs();
             this.renderAllCharts();
             this.updateTopItems();
+            this.performValidation();
           });
         });
 
@@ -2060,6 +2128,8 @@
           debit: ['مدين', 'debit', 'مدينة'],
           credit: ['دائن', 'credit', 'دائنة'],
           amount: ['مبلغ', 'amount', 'قيمة', 'value'],
+          budget: ['موازنة', 'الموازنة', 'budget', 'approved', 'معتمد', 'اعتماد'],
+          actual: ['فعلي', 'actual', 'spent', 'expense', 'مصروف', 'منصرف', 'صرف'],
           date: ['تاريخ', 'date'],
           description: ['بيان', 'description', 'وصف'],
           department: ['جهة', 'dept', 'قسم', 'إدارة'],
@@ -2122,12 +2192,29 @@
       renderColumnSelectors() {
         const categorySelect = document.getElementById('categoryColumn');
         const valueSelect = document.getElementById('valueColumn');
+        const debitSelect = document.getElementById('debitColumn');
+        const creditSelect = document.getElementById('creditColumn');
+        const amountSelect = document.getElementById('amountColumn');
+        const dateSelect = document.getElementById('dateColumn');
+        const categoryManualSelect = document.getElementById('categoryColumnManual');
 
         categorySelect.innerHTML = '<option value="">اختر العمود</option>' +
           this.state.headers.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
 
         valueSelect.innerHTML = '<option value="">اختر العمود</option>' +
           this.state.numericColumns.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
+
+        const allHeadersOptions = '<option value="">تلقائي</option>' +
+          this.state.headers.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
+
+        const numericHeadersOptions = '<option value="">تلقائي</option>' +
+          this.state.numericColumns.map(h => `<option value="${Formatter.escapeHtml(h)}">${Formatter.escapeHtml(h)}</option>`).join('');
+
+        debitSelect.innerHTML = numericHeadersOptions;
+        creditSelect.innerHTML = numericHeadersOptions;
+        amountSelect.innerHTML = numericHeadersOptions;
+        dateSelect.innerHTML = allHeadersOptions;
+        categoryManualSelect.innerHTML = allHeadersOptions;
 
         if (this.state.financialColumns.category) {
           categorySelect.value = this.state.financialColumns.category;
@@ -2139,6 +2226,22 @@
           valueSelect.value = this.state.financialColumns.amount;
         } else if (this.state.numericColumns[0]) {
           valueSelect.value = this.state.numericColumns[0];
+        }
+
+        if (this.state.financialColumns.debit) {
+          debitSelect.value = this.state.financialColumns.debit;
+        }
+        if (this.state.financialColumns.credit) {
+          creditSelect.value = this.state.financialColumns.credit;
+        }
+        if (this.state.financialColumns.amount) {
+          amountSelect.value = this.state.financialColumns.amount;
+        }
+        if (this.state.financialColumns.date) {
+          dateSelect.value = this.state.financialColumns.date;
+        }
+        if (this.state.financialColumns.category) {
+          categoryManualSelect.value = this.state.financialColumns.category;
         }
       },
 
@@ -2230,6 +2333,74 @@
       },
 
       /**
+       * Resolve usable financial columns with safe fallbacks
+       */
+      resolveFinancialColumns() {
+        const manualDebit = document.getElementById('debitColumn')?.value || '';
+        const manualCredit = document.getElementById('creditColumn')?.value || '';
+        const manualAmount = document.getElementById('amountColumn')?.value || '';
+        const manualCategory = document.getElementById('categoryColumnManual')?.value || '';
+        const manualDate = document.getElementById('dateColumn')?.value || '';
+        const selectedValueColumn = document.getElementById('valueColumn')?.value || '';
+        const amountCol = manualAmount || selectedValueColumn || this.state.financialColumns.amount || this.state.numericColumns[0] || null;
+
+        const debitCol = manualDebit || this.state.financialColumns.debit || this.state.financialColumns.budget || amountCol;
+        const creditCol = manualCredit || this.state.financialColumns.credit || this.state.financialColumns.actual || amountCol;
+        const categoryCol = manualCategory || this.state.financialColumns.category || this.state.headers[0] || null;
+        const dateCol = manualDate || this.state.financialColumns.date || null;
+
+        return { debitCol, creditCol, amountCol, categoryCol, dateCol };
+      },
+
+      /**
+       * Calculate financial summary for KPIs and budget tab
+       */
+      calculateFinancialSummary() {
+        const { debitCol, creditCol, amountCol } = this.resolveFinancialColumns();
+
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let unbalanced = 0;
+
+        this.state.filteredRows.forEach(row => {
+          const debit = Formatter.toNumber(row[debitCol]) || 0;
+          const credit = Formatter.toNumber(row[creditCol]) || 0;
+
+          totalDebit += debit;
+          totalCredit += credit;
+
+          if (debitCol !== creditCol && Math.abs(debit - credit) > 0.01) {
+            unbalanced++;
+          }
+        });
+
+        if (totalDebit === 0 && totalCredit === 0 && amountCol) {
+          const totalAmount = this.state.filteredRows.reduce((sum, row) => {
+            return sum + (Formatter.toNumber(row[amountCol]) || 0);
+          }, 0);
+          totalDebit = totalAmount;
+          totalCredit = totalAmount;
+        }
+
+        const approvedBudget = totalDebit;
+        const actualSpent = totalCredit;
+        const remaining = Math.max(approvedBudget - actualSpent, 0);
+        const deviation = Math.abs(approvedBudget - actualSpent);
+        const executionRate = approvedBudget > 0 ? (actualSpent / approvedBudget) * 100 : 0;
+
+        return {
+          totalDebit,
+          totalCredit,
+          unbalanced,
+          approvedBudget,
+          actualSpent,
+          remaining,
+          deviation,
+          executionRate
+        };
+      },
+
+      /**
        * Update filters count
        */
       updateFiltersCount() {
@@ -2248,31 +2419,17 @@
         document.getElementById('totalRows').textContent = Formatter.formatNumber(total);
         document.getElementById('filteredRows').textContent = Formatter.formatNumber(filtered);
 
-        let totalDebit = 0;
-        let totalCredit = 0;
-        let unbalanced = 0;
+        const summary = this.calculateFinancialSummary();
 
-        const debitCol = this.state.financialColumns.debit;
-        const creditCol = this.state.financialColumns.credit;
+        document.getElementById('totalDebit').textContent = Formatter.formatCurrency(summary.totalDebit);
+        document.getElementById('totalCredit').textContent = Formatter.formatCurrency(summary.totalCredit);
+        document.getElementById('unbalancedEntries').textContent = Formatter.formatNumber(summary.unbalanced);
+        document.getElementById('executionRate').textContent = Formatter.formatNumber(summary.executionRate) + '%';
 
-        this.state.filteredRows.forEach(row => {
-          const debit = Formatter.toNumber(row[debitCol]) || 0;
-          const credit = Formatter.toNumber(row[creditCol]) || 0;
-          
-          totalDebit += debit;
-          totalCredit += credit;
-          
-          if (Math.abs(debit - credit) > 0.01) {
-            unbalanced++;
-          }
-        });
-
-        document.getElementById('totalDebit').textContent = Formatter.formatCurrency(totalDebit);
-        document.getElementById('totalCredit').textContent = Formatter.formatCurrency(totalCredit);
-        document.getElementById('unbalancedEntries').textContent = Formatter.formatNumber(unbalanced);
-
-        const executionRate = totalDebit > 0 ? ((totalCredit / totalDebit) * 100) : 0;
-        document.getElementById('executionRate').textContent = Formatter.formatNumber(executionRate) + '%';
+        document.getElementById('approvedBudget').textContent = Formatter.formatCurrency(summary.approvedBudget);
+        document.getElementById('actualSpent').textContent = Formatter.formatCurrency(summary.actualSpent);
+        document.getElementById('remaining').textContent = Formatter.formatCurrency(summary.remaining);
+        document.getElementById('deviation').textContent = Formatter.formatCurrency(summary.deviation);
 
         this.updateTopItems();
         this.updateQuickAlerts();
@@ -2316,13 +2473,38 @@
         const container = document.getElementById('quickAlerts');
         const alerts = [];
 
-        const unbalanced = parseInt(document.getElementById('unbalancedEntries').textContent.replace(/,/g, ''));
+        const { debitCol, creditCol } = this.resolveFinancialColumns();
+        const unbalancedDetails = [];
+
+        if (debitCol && creditCol && debitCol !== creditCol) {
+          this.state.filteredRows.forEach((row, index) => {
+            const debit = Formatter.toNumber(row[debitCol]) || 0;
+            const credit = Formatter.toNumber(row[creditCol]) || 0;
+            const diff = Math.abs(debit - credit);
+
+            if (diff > 0.01) {
+              unbalancedDetails.push({
+                index: index + 1,
+                debit,
+                credit,
+                diff
+              });
+            }
+          });
+        }
+
+        const unbalanced = unbalancedDetails.length;
         
         if (unbalanced > 0) {
+          const detailsHtml = unbalancedDetails.map(item =>
+            `<li>قيد #${item.index}: مدين ${Formatter.formatCurrency(item.debit)} | دائن ${Formatter.formatCurrency(item.credit)} | الفرق ${Formatter.formatCurrency(item.diff)}</li>`
+          ).join('');
+
           alerts.push({
             type: 'danger',
             icon: 'exclamation-triangle',
-            text: `يوجد ${Formatter.formatNumber(unbalanced)} قيد غير متوازن`
+            text: `يوجد ${Formatter.formatNumber(unbalanced)} قيد غير متوازن`,
+            details: `<ul class="alert-details-list mb-0">${detailsHtml}</ul>`
           });
         }
 
@@ -2345,6 +2527,7 @@
         container.innerHTML = alerts.map(alert => `
           <div class="alert alert-${alert.type} mb-2">
             <i class="bi bi-${alert.icon}"></i> ${alert.text}
+            ${alert.details || ''}
           </div>
         `).join('');
       },
@@ -2555,6 +2738,7 @@
        */
       renderBudgetCharts() {
         const colors = this.getChartColors();
+        const summary = this.calculateFinancialSummary();
 
         ChartManager.createChart('budgetComparisonChart', {
           type: 'bar',
@@ -2562,7 +2746,7 @@
             labels: ['الموازنة المعتمدة', 'المنصرف الفعلي', 'المتبقي'],
             datasets: [{
               label: 'المبلغ (' + this.state.settings.currency + ')',
-              data: [1000000, 750000, 250000],
+              data: [summary.approvedBudget, summary.actualSpent, summary.remaining],
               backgroundColor: [colors.colors[0] + '80', colors.colors[1] + '80', colors.colors[2] + '80'],
               borderColor: [colors.colors[0], colors.colors[1], colors.colors[2]],
               borderWidth: 2
@@ -2581,13 +2765,56 @@
           }
         });
 
+        const { debitCol, creditCol, amountCol, categoryCol } = this.resolveFinancialColumns();
+        const categoryColumn = categoryCol || document.getElementById('categoryColumn')?.value || this.state.headers[0];
+        const byCategory = {};
+
+        if (categoryColumn) {
+          this.state.filteredRows.forEach(row => {
+            const category = Formatter.normalizeValue(row[categoryColumn]) || 'غير محدد';
+            if (!byCategory[category]) {
+              byCategory[category] = { debit: 0, credit: 0, amount: 0 };
+            }
+
+            byCategory[category].debit += Formatter.toNumber(row[debitCol]) || 0;
+            byCategory[category].credit += Formatter.toNumber(row[creditCol]) || 0;
+            byCategory[category].amount += Formatter.toNumber(row[amountCol]) || 0;
+          });
+        }
+
+        let executionPoints = Object.entries(byCategory).map(([category, totals]) => {
+          let rate = 0;
+          if (debitCol !== creditCol && totals.debit > 0) {
+            rate = (totals.credit / totals.debit) * 100;
+          } else {
+            rate = totals.amount;
+          }
+          return { category, rate };
+        });
+
+        if (debitCol === creditCol) {
+          const maxRate = executionPoints.reduce((max, p) => Math.max(max, p.rate), 0);
+          executionPoints = executionPoints.map(p => ({
+            category: p.category,
+            rate: maxRate > 0 ? (p.rate / maxRate) * 100 : 0
+          }));
+        }
+
+        executionPoints = executionPoints
+          .sort((a, b) => b.rate - a.rate)
+          .slice(0, 6);
+
+        if (executionPoints.length === 0) {
+          executionPoints = [{ category: 'الإجمالي', rate: summary.executionRate }];
+        }
+
         ChartManager.createChart('executionRateChart', {
           type: 'line',
           data: {
-            labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+            labels: executionPoints.map(p => p.category),
             datasets: [{
               label: 'نسبة التنفيذ %',
-              data: [10, 25, 40, 55, 68, 75],
+              data: executionPoints.map(p => Math.max(0, Math.min(100, p.rate))),
               borderColor: colors.colors[0],
               backgroundColor: colors.colors[0] + '20',
               tension: 0.4,
@@ -2617,10 +2844,15 @@
        * Perform validation
        */
       performValidation() {
+        const { debitCol, creditCol } = this.resolveFinancialColumns();
         const results = ValidationService.performAll(
           this.state.filteredRows,
           this.state.headers,
-          this.state.financialColumns
+          {
+            ...this.state.financialColumns,
+            debit: debitCol,
+            credit: creditCol
+          }
         );
 
         const validRecords = this.state.filteredRows.length - results.unbalanced.length;
@@ -2634,8 +2866,11 @@
         document.getElementById('duplicatesCount').textContent = Formatter.formatNumber(results.duplicates.length);
         document.getElementById('missingCount').textContent = Formatter.formatNumber(results.incomplete.length);
 
-        this.renderValidationList('unbalancedList', results.unbalanced, (item) => 
-          `قيد #${item.index}: مدين ${Formatter.formatCurrency(item.debit)} | دائن ${Formatter.formatCurrency(item.credit)} | الفرق: ${Formatter.formatCurrency(item.diff)}`
+        this.renderValidationList(
+          'unbalancedList',
+          results.unbalanced,
+          (item) => `قيد #${item.index}: مدين ${Formatter.formatCurrency(item.debit)} | دائن ${Formatter.formatCurrency(item.credit)} | الفرق: ${Formatter.formatCurrency(item.diff)}`,
+          null
         );
 
         this.renderValidationList('duplicatesList', results.duplicates.slice(0, 20).map((idx, i) => ({ index: idx })), (item) => 
@@ -2650,7 +2885,7 @@
       /**
        * Render validation list
        */
-      renderValidationList(elementId, items, formatter) {
+      renderValidationList(elementId, items, formatter, maxItems = 20) {
         const container = document.getElementById(elementId);
         
         if (items.length === 0) {
@@ -2658,12 +2893,14 @@
           return;
         }
 
-        container.innerHTML = items.slice(0, 20).map(item => 
+        const visibleItems = maxItems === null ? items : items.slice(0, maxItems);
+
+        container.innerHTML = visibleItems.map(item => 
           `<div class="validation-item">${formatter(item)}</div>`
         ).join('');
 
-        if (items.length > 20) {
-          container.innerHTML += `<div class="text-muted small mt-2">... و ${Formatter.formatNumber(items.length - 20)} آخرين</div>`;
+        if (maxItems !== null && items.length > maxItems) {
+          container.innerHTML += `<div class="text-muted small mt-2">... و ${Formatter.formatNumber(items.length - maxItems)} آخرين</div>`;
         }
       },
 
